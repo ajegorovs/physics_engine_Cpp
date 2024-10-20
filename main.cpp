@@ -143,6 +143,73 @@ struct UniformBufferObject {
     alignas(16) glm::mat4 proj;
 };
 
+struct sceneObject {
+    std::string name;
+    uint32_t id;
+    std::vector<Vertex> vertices;
+    std::vector<uint32_t> indices;
+};
+
+struct obj_prism {
+    std::array<float, 3> centroid;    
+    std::array<float, 3> side_lengths; 
+    int32_t density;
+    std::array<std::array<float, 3>, 8> vertices;  
+    std::array<std::array<float, 3>, 8> colors;
+
+    std::vector <uint32_t> indices = {  1,0,2,2,0,3, // order defines normal ? 
+                                        4,5,6,6,7,4, // ? only outward part is rendered ? :(
+                                        1,2,6,6,5,1,
+                                        0,4,3,3,4,7,
+                                        0,1,5,5,4,0,
+                                        6,2,7,7,2,3};
+
+    // Constructor that initializes centroid, side lengths, and density, and computes vertices
+    obj_prism(std::array<float, 3> c = { 0.0f, 0.0f, 0.0f },
+        std::array<float, 3> s = { 1.0f, 1.0f, 1.0f },
+        int32_t d = 1)
+        : centroid(c), side_lengths(s), density(d) {
+
+        // Initialize unit cube vertices
+        vertices = { {
+            {-0.5f, -0.5f, -0.5f}, 
+            { 0.5f, -0.5f, -0.5f}, 
+            { 0.5f,  0.5f, -0.5f}, 
+            {-0.5f,  0.5f, -0.5f}, 
+            {-0.5f, -0.5f,  0.5f}, 
+            { 0.5f, -0.5f,  0.5f}, 
+            { 0.5f,  0.5f,  0.5f}, 
+            {-0.5f,  0.5f,  0.5f}  
+        } };
+
+        // Apply scaling and translation to each vertex
+        for (uint32_t i = 0; i<vertices.size(); i++) {
+            colors[i][0] = vertices[i][0] + 0.5f;
+            colors[i][1] = vertices[i][1] + 0.5f;
+            colors[i][2] = vertices[i][2] + 0.5f;
+            // Scale
+            vertices[i][0] *= side_lengths[0];
+            vertices[i][1] *= side_lengths[1];
+            vertices[i][2] *= side_lengths[2];
+
+            // Translate (move by centroid)
+            vertices[i][0] += centroid[0];
+            vertices[i][1] += centroid[1];
+            vertices[i][2] += centroid[2];
+        }
+
+
+    }
+
+    // Optional: Print vertices for debugging
+    void printVertices() const {
+        for (const auto& vertex : vertices) {
+            std::cout << "(" << vertex[0] << ", " << vertex[1] << ", " << vertex[2] << ")\n";
+        }
+    }
+};
+
+
 class HelloTriangleApplication {
 public:
     void run() {
@@ -250,8 +317,9 @@ private:
         createTextureImage();
         createTextureImageView();
         createTextureSampler();
-        loadModel();
-        formPlane(0.0f,5.0f);
+        //loadModel();
+        formPrism();
+        //formPlane(0.0f,5.0f);
         createVertexBuffer();
         createIndexBuffer();
         createUniformBuffers();
@@ -699,7 +767,7 @@ private:
         rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
         rasterizer.depthClampEnable = VK_FALSE;
         rasterizer.rasterizerDiscardEnable = VK_FALSE;
-        rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+        rasterizer.polygonMode = VK_POLYGON_MODE_FILL; //VK_POLYGON_MODE_LINE;// VK_POLYGON_MODE_FILL;
         rasterizer.lineWidth = 1.0f;
         rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
         rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
@@ -1158,13 +1226,7 @@ private:
             {{-a, a, height}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, 0.0f}
         };
         
-        /*int32_t scale = 5.0f;
-        
-        for (auto& vtx : planeVerts) {
-            vtx.pos.x *= scale;
-            vtx.pos.y *= scale;
-        }*/
-        vertices.insert(vertices.end(), planeVerts.begin(), planeVerts.end());
+           vertices.insert(vertices.end(), planeVerts.begin(), planeVerts.end());
 
         std::vector<uint32_t> planeIndices = { 0, 1, 2, 2, 3, 0 };
 
@@ -1175,14 +1237,35 @@ private:
             maxValue = *maxIt;
             offset = 1;
         }
-        
              
         for (auto& index : planeIndices) {
             indices.push_back(index + offset + maxValue);
         }
+    }
 
-        1;
+    void formPrism() {
+        obj_prism customPrism({ 0.0f, 0.0f, 0.0f }, { 0.5f, 1.0f, 1.5f }, 1);
+        
+        for (int i = 0; i < customPrism.vertices.size(); i++) {
+            auto& coord = customPrism.vertices[i];
+            auto& col = customPrism.colors[i];
+            Vertex vertex{ {coord[0],coord[1],coord[2]}, {col[0],col[1],col[2]}, {0.0f, 0.0f}, 0.0f };
+            vertices.push_back(vertex);
+        }
 
+        std::vector<uint32_t> planeIndices = { 0, 1, 2, 2, 3, 0 };
+
+        uint32_t maxValue = 0;
+        uint32_t offset = 0;
+        if (!indices.empty()) {
+            auto maxIt = std::max_element(indices.begin(), indices.end());
+            maxValue = *maxIt;
+            offset = 1;
+        }
+
+        for (auto& index : customPrism.indices) {
+            indices.push_back(index + offset + maxValue);
+        }
     }
 
     void loadModel() {
@@ -1806,6 +1889,10 @@ private:
 };
 
 int main() {
+
+    
+    //obj_prism customPrism({ 0.0f, 0.0f, 1.0f }, { 1.0f, 2.0f, 1.0f }, 1);
+
     HelloTriangleApplication app;
 
     try {
