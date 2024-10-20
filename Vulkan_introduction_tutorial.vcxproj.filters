@@ -15,49 +15,34 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
+    <ClInclude Include="config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="partUno.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vApp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="partDos.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="mainApp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="vDevice.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="vWindow.cpp">
+    <ClCompile Include="partUno.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="vApp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="vInstance.cpp">
+    <ClCompile Include="partDos.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="vDebug.cpp">
+    <ClCompile Include="config.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="vApp.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="vDevice.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="vSwapChain.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="VPipeline.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="config.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="vWindow.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="vDebug.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="vInstance.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>

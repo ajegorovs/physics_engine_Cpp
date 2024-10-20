@@ -1,27 +1,27 @@
+#pragma once
 #include "vApp.h"		// class
-#include <GLFW/glfw3.h> // everything glfw
-#include "config.h"		// WIDTH, HEIGHT
-#include "vInstance.h"
-#include "vDevice.h"
-//#include "vDebug.h"
-#include <iostream>
-
-
-
 
 void VApp::run() {
-	VApp::initWindow();
-	VInst vInst;
-	VDevice vDevice;
-	VDebug vDebug;
-	vInst.createInstance(vDevice, vDebug);
-	vDebug.setupDebugMessenger(vInst.instance);
+	initWindow();
+	p1.init(window);			// share window pointer with p1 + other
+	p1.createInstance();		// instance pointer
+	p1.setupDebugMessenger();	// debugMessenger pointer
+	p1.createSurface();			// surface pointer
+	p1.pickPhysicalDevice();	// physicalDevice, msaaSamples
+	p1.createLogicalDevice();
+	p2.init(window, p1.device, p1.physicalDevice, p1.surface, p1.msaaSamples);
+	p2.createSwapChain();
+	p2.createImageViews();
+	p2.createRenderPass();
+	p2.createDescriptorSetLayout();
+	p2.createGraphicsPipeline();
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
-		std::cout << framebufferResized << ")\n";
+		//std::cout << framebufferResized << ")\n";
 	}
-	//vkDestroyInstance(instance, nullptr);
+	
 	glfwDestroyWindow(window);
+
 	glfwTerminate();
 }
 

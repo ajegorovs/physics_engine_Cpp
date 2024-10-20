@@ -137,22 +137,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="vDebug.cpp" />
-    <ClCompile Include="vInstance.cpp" />
-    <ClCompile Include="vApp.cpp" />
-    <ClCompile Include="vDevice.cpp" />
-    <ClCompile Include="vWindow.cpp" />
+    <ClInclude Include="config.h" />
+    <ClInclude Include="partDos.h" />
+    <ClInclude Include="partUno.h" />
+    <ClInclude Include="vApp.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="config.h" />
-    <ClInclude Include="vDebug.h" />
-    <ClInclude Include="vDevice.h" />
-    <ClInclude Include="vApp.h" />
-    <ClInclude Include="vInstance.h" />
-    <ClInclude Include="VPipeline.h" />
-    <ClInclude Include="vSwapChain.h" />
-    <ClInclude Include="vWindow.h" />
+    <ClCompile Include="config.cpp" />
+    <ClCompile Include="mainApp.cpp" />
+    <ClCompile Include="partDos.cpp" />
+    <ClCompile Include="partUno.cpp" />
+    <ClCompile Include="vApp.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
