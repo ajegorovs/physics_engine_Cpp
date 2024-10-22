@@ -7,7 +7,7 @@
 #include <iostream>
 #include <fstream>
 #include <array>
-#include <memory>
+#include <cmath>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -100,6 +100,9 @@ struct UniformBufferObject {
     alignas(16) glm::mat4 proj;
 };
 
+struct StorageBufferObject {
+    std::array<glm::mat4, 10> model;
+};
 
 class geometric_shape {
 public:

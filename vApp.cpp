@@ -26,9 +26,9 @@ int main() {
     try {
         float pi = glm::pi<float>();
         std::vector<std::unique_ptr<geometric_shape>> scene;
-        scene.push_back(std::make_unique<Prism>(glm::vec3(1, 0.5, 0.5)  , glm::vec3(0, 0, 0.5)  , glm::vec2(glm::radians(45.), glm::radians(0.))));
-        scene.push_back(std::make_unique<Cube>(0.5                  , glm::vec3(0, 0, 1)    , glm::vec2(0, 0)));
         scene.push_back(std::make_unique<Plane>(glm::vec3(3, 3, 0)  , glm::vec3(0, 0, 0)    , glm::vec2(0, 0)));
+        scene.push_back(std::make_unique<Prism>(glm::vec3(1, 0.5, 0.5)  , glm::vec3(0, 0, 0.5)  , glm::vec2(glm::radians(45.), glm::radians(30.))));
+        scene.push_back(std::make_unique<Cube>(0.5                  , glm::vec3(1, 1, 0.25)    , glm::vec2(0, 0)));
 
         pUI->initWindow();
         pUI->createInstance();
@@ -53,6 +53,7 @@ int main() {
         pRes->createVertexBuffer();
         pRes->createIndexBuffer();
         pRes->createUniformBuffers();
+        pRes->createStorageBuffers();
         pRes->createDescriptorPool();
         pRes->createDescriptorSets();
         pRes->createCommandBuffers();

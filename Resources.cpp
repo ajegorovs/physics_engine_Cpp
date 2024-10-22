@@ -52,6 +52,8 @@ void Resources::cleanup() {
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroyBuffer(dvc->device, uniformBuffers[i], nullptr);
         vkFreeMemory(dvc->device, uniformBuffersMemory[i], nullptr);
+        vkDestroyBuffer(dvc->device, storageBuffers[i], nullptr);
+        vkFreeMemory(dvc->device, storageBuffersMemory[i], nullptr);
     }
 }
 
@@ -82,7 +84,14 @@ void Resources::createDescriptorSetLayout() {
     samplerLayoutBinding.pImmutableSamplers = nullptr;
     samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
+    VkDescriptorSetLayoutBinding sboLayoutBinding{};
+    sboLayoutBinding.binding = 2;
+    sboLayoutBinding.descriptorCount = 1;
+    sboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    sboLayoutBinding.pImmutableSamplers = nullptr;
+    sboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    std::array<VkDescriptorSetLayoutBinding, 3> bindings = { uboLayoutBinding, samplerLayoutBinding, sboLayoutBinding };
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -609,13 +618,14 @@ void Resources::createTextureImage() {
 void Resources::processScene(const std::vector<std::unique_ptr<geometric_shape>>& scene) {
     float id = 0;
     for (const auto& shape : scene) {
+
         for (uint32_t i = 0; i < shape->colors.size(); i++) {
             glm::vec4 coord = shape->vertices[i];
             glm::vec3 color = shape->colors[i];
             //std::cout << glm::to_string(coord) << std::endl;
             Vertex vertex{ {coord.x,coord.y,coord.z}, {color.x,color.y,color.z}, {0.0f, 0.0f}, 0.0f,  id};
             vertices.push_back(vertex);
-            id++;
+            
         }
         
         uint32_t maxValue = 0;
@@ -629,6 +639,7 @@ void Resources::processScene(const std::vector<std::unique_ptr<geometric_shape>>
         for (auto& index : shape->indices) {
             indices.push_back(index + offset + maxValue);
         }
+        id++;
 
     }
 }
@@ -744,13 +755,31 @@ void Resources::createUniformBuffers() {
     timer.line_end("createUniformBuffers");
 }
 
+void Resources::createStorageBuffers() {
+    timer.line_init("createStorageBuffers");
+    VkDeviceSize bufferSize = sizeof(StorageBufferObject);
+
+    storageBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    storageBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+    storageBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBuffer(bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, storageBuffers[i], storageBuffersMemory[i]);
+
+        vkMapMemory(dvc->device, storageBuffersMemory[i], 0, bufferSize, 0, &storageBuffersMapped[i]);
+    }
+    timer.line_end("createStorageBuffers");
+}
+
 void Resources::createDescriptorPool() {
     timer.line_init("createDescriptorPool");
-    std::array<VkDescriptorPoolSize, 2> poolSizes{};
+    std::array<VkDescriptorPoolSize, 3> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    poolSizes[2].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -784,12 +813,17 @@ void Resources::createDescriptorSets() {
         bufferInfo.offset = 0;
         bufferInfo.range = sizeof(UniformBufferObject);
 
+        VkDescriptorBufferInfo bufferInfo2{};
+        bufferInfo2.buffer = storageBuffers[i];
+        bufferInfo2.offset = 0;
+        bufferInfo2.range = sizeof(StorageBufferObject);
+
         VkDescriptorImageInfo imageInfo{};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         imageInfo.imageView = img->textureImageView;
         imageInfo.sampler = textureSampler;
 
-        std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+        std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
 
         descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptorWrites[0].dstSet = descriptorSets[i];
@@ -806,6 +840,14 @@ void Resources::createDescriptorSets() {
         descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         descriptorWrites[1].descriptorCount = 1;
         descriptorWrites[1].pImageInfo = &imageInfo;
+
+        descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[2].dstSet = descriptorSets[i];
+        descriptorWrites[2].dstBinding = 2;
+        descriptorWrites[2].dstArrayElement = 0;
+        descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptorWrites[2].descriptorCount = 1;
+        descriptorWrites[2].pBufferInfo = &bufferInfo2;
 
         vkUpdateDescriptorSets(dvc->device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
     }
@@ -858,13 +900,29 @@ void Resources::updateUniformBuffer(uint32_t currentImage) {
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
     UniformBufferObject ubo{};
-    ubo.model = glm::rotate(glm::mat4(1.0f), 0*time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.model = glm::rotate(glm::mat4(1.0f), 0.00f * time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), img->swapChainExtent.width / (float)img->swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
 
     memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
 }
+
+void Resources::updateStorageBuffer(uint32_t currentImage) {
+    static auto startTime = std::chrono::high_resolution_clock::now();
+
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+    StorageBufferObject sbo{};
+    //std::array<float> rots{}
+    for (size_t i = 0; i < sbo.model.size(); i++) {
+        sbo.model[i] = glm::rotate(glm::mat4(1.0f), static_cast<float>(pow(-1, i) * 2 * i) * time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+       
+    }
+    memcpy(storageBuffersMapped[currentImage], &sbo, sizeof(sbo));
+}
+
 
 void Resources::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
     VkCommandBufferBeginInfo beginInfo{};
@@ -957,6 +1015,8 @@ void Resources::drawFrame() {
     }
 
     updateUniformBuffer(currentFrame);
+
+    updateStorageBuffer(currentFrame);
 
     vkResetFences(dvc->device, 1, &inFlightFences[currentFrame]);
 

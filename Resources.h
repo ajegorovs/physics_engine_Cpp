@@ -39,7 +39,9 @@ private:
     VkBuffer vertexBuffer;
     VkBuffer indexBuffer;
     std::vector<VkBuffer> uniformBuffers;
+    std::vector<VkBuffer> storageBuffers;
     std::vector<void*> uniformBuffersMapped;
+    std::vector<void*> storageBuffersMapped;
     std::vector<VkCommandBuffer> commandBuffers;
 
     std::vector<VkSemaphore> imageAvailableSemaphores;
@@ -54,6 +56,7 @@ private:
     VkDeviceMemory indexBufferMemory;
     VkDeviceMemory vertexBufferMemory;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
+    std::vector<VkDeviceMemory> storageBuffersMemory;
 
     Timer timer;
 
@@ -116,6 +119,8 @@ public:
 
     void createUniformBuffers();
 
+    void createStorageBuffers();
+
     void createDescriptorPool();
 
     void createDescriptorSets();
@@ -125,6 +130,8 @@ public:
     void createSyncObjects();
 
     void updateUniformBuffer(uint32_t currentImage);
+
+    void updateStorageBuffer(uint32_t currentImage);
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
