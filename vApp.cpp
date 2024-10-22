@@ -135,9 +135,32 @@ static std::vector<char> readFile(const std::string& filename) {
     return buffer;
 }
 
+class Timer {
+private:
+    std::chrono::time_point<std::chrono::steady_clock> start_time; // To store the start time
+
+public:
+    // Initialize the timer when the object is created
+    void line_init(const std::string& className) {
+        std::cout << className << "() initializing ... " << std::endl;
+        start_time = std::chrono::steady_clock::now();  // Start the timer
+    }
+
+    // End the timer and calculate the elapsed time
+    void line_end(const std::string& className) {
+        auto end_time = std::chrono::steady_clock::now();  // Get the current time (end time)
+        std::chrono::duration<double> elapsed_seconds = end_time - start_time;  // Calculate elapsed time
+        std::cout << className << "() initializing finished! ("<< elapsed_seconds.count() << " s)" << std::endl << std::string(60, '-') << std::endl;;
+
+    }
+};
+Timer timer;
+
 class BaseEnvironment {
 private:
+    
 public:
+    bool framebufferResized = false;
     const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
     const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
     int k = 10;
@@ -146,8 +169,11 @@ public:
     VkSurfaceKHR surface;
     BaseEnvironment() {};
 
-    void asdOG() {
-        std::cout << "ASD OOOGGGEEEE" << std::endl;
+    void cleanup() {
+        vkDestroySurfaceKHR(instance, surface, nullptr);
+        vkDestroyInstance(instance, nullptr);
+        glfwDestroyWindow(window);
+        glfwTerminate();
     }
 };
 
@@ -157,10 +183,29 @@ private:
     VkDebugUtilsMessengerEXT debugMessenger;
 
 public:
-    DebugEnvironment(std::shared_ptr<BaseEnvironment> env) : base(env) {}
-    int m = 21;
+      
+    DebugEnvironment(std::shared_ptr<BaseEnvironment> env) : base(env) {
+        1;}
+
+    void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
+        auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+        if (func != nullptr) {
+            func(instance, debugMessenger, pAllocator);
+        }
+    }
+    void cleanup(std::shared_ptr<BaseEnvironment> env) {
+        if (enableValidationLayers) {
+            std::cout << env.get();
+            auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(env->instance, "vkDestroyDebugUtilsMessengerEXT");
+            if (func != nullptr) {
+                func(env->instance, debugMessenger, nullptr);
+            }
+          
+        }
+    }
+
     void setupDebugMessenger() {
-        std::cout << "setupDebugMessenger() initializing ... " << std::endl;
+        timer.line_init("setupDebugMessenger"); 
         if (!enableValidationLayers) return;
 
         VkDebugUtilsMessengerCreateInfoEXT createInfo;
@@ -169,8 +214,7 @@ public:
         if (CreateDebugUtilsMessengerEXT(base->instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
             throw std::runtime_error("failed to set up debug messenger!");
         }
-        std::cout << "setupDebugMessenger() Finished!" << std::endl;;
-        std::cout << std::string(60, '=') << std::endl;;
+        timer.line_end("setupDebugMessenger");
     }
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
@@ -226,17 +270,22 @@ private:
     bool framebufferResized = false;
     std::vector<const char*> getRequiredExtensions();
 public:
+    UI(std::shared_ptr<BaseEnvironment> env) : base(env){}
+
+    void connect(std::shared_ptr<DebugEnvironment> env) { deb = env; };
+
     void initWindow() {
-        std::cout << "initWindow() initializing ... " << std::endl;
+        timer.line_init("initWindow");
+        //std::cout << "initWindow() initializing ... " << std::endl;
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         base->window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
         glfwSetWindowUserPointer(base->window, this);
         glfwSetFramebufferSizeCallback(base->window, framebufferResizeCallback);
-        std::cout << "initWindow() Finished!" << std::endl << std::string(60, '=') << std::endl;
+        timer.line_end("initWindow");
     }
     void createInstance() {
-        std::cout << "createInstance() initializing ... " << std::endl;
+        timer.line_init("createInstance");
         if (enableValidationLayers && !(deb->checkValidationLayerSupport())) {
             throw std::runtime_error("validation layers requested, but not available!");
         }
@@ -274,33 +323,27 @@ public:
         if (vkCreateInstance(&createInfo, nullptr, &(base->instance)) != VK_SUCCESS) {
             throw std::runtime_error("failed to create instance!");
         }
-        std::cout << "createInstance() Finished!" << std::endl << std::string(60, '=') << std::endl;
+        timer.line_end("createInstance");
 
     }
-    // Constructor accepts a shared pointer to the base environment
-    UI(std::shared_ptr<BaseEnvironment> env, std::shared_ptr<DebugEnvironment> env2) : base(env), deb(env2) {}
 
-    void asd() { std::cout << "ASD " << deb->m << std::endl; }
-
-    void run() {
-        while (!glfwWindowShouldClose(base->window)) {
-            glfwPollEvents();
-            std::cout << "\b" << framebufferResized;
-        }
-    }
-
+    
     void createSurface() {
-        std::cout << "createSurface() initializing ... " << std::endl;
+        timer.line_init("createSurface"); 
         auto a = glfwCreateWindowSurface(base->instance, base->window, nullptr, &(base->surface));
         if (a != VK_SUCCESS) {
             std::cout << a << "\n";
             throw std::runtime_error("failed to create window surface!");
         }
-        std::cout << "createSurface() Finished!" << std::endl << std::string(60, '=') << std::endl;;
+        timer.line_end("createSurface");
 
     }
 };
 
+void UI::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
+    auto app = reinterpret_cast<UI*>(glfwGetWindowUserPointer(window));
+    app->base->framebufferResized = true; // lets store it in baseEnv, so i dont have to connect.
+};
 
 class Device {
 private:
@@ -315,6 +358,9 @@ public:
 
     Device(std::shared_ptr<BaseEnvironment> env) : base(env) {}
 
+    void cleanup() {
+        vkDestroyDevice(device, nullptr);
+    }
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
         QueueFamilyIndices indices;
 
@@ -420,7 +466,7 @@ public:
     }
 
     void pickPhysicalDevice() {
-        std::cout << "pickPhysicalDevice() initializing ... " << std::endl;
+        timer.line_init("pickPhysicalDevice"); 
         uint32_t deviceCount = 0;
         vkEnumeratePhysicalDevices(base->instance, &deviceCount, nullptr);
 
@@ -442,11 +488,11 @@ public:
         if (physicalDevice == VK_NULL_HANDLE) {
             throw std::runtime_error("failed to find a suitable GPU!");
         }
-        std::cout << "pickPhysicalDevice() Finished!" << std::endl << std::string(60, '=') << std::endl;;
+        timer.line_end("pickPhysicalDevice");
     }
 
     void createLogicalDevice() {
-        std::cout << "createLogicalDevice() initializing ... " << std::endl;
+        timer.line_init("createLogicalDevice"); 
         QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
@@ -490,7 +536,7 @@ public:
 
         vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
         vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
-        std::cout << "createLogicalDevice() Finished!" << std::endl << std::string(60, '=') << std::endl;
+        timer.line_end("createLogicalDevice");
     }
 
     VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
@@ -550,7 +596,26 @@ public:
     VkImageView colorImageView;
     VkImageView depthImageView;
 
-    Image(std::shared_ptr<BaseEnvironment> env, std::shared_ptr<Device> env2) : base(env), dvc(env2) {}
+    Image(std::shared_ptr<BaseEnvironment> env) : base(env){}
+
+    void connect(std::shared_ptr<Device> env) { dvc = env; };
+
+    void cleanupSwapChain() {
+        vkDestroyImageView(dvc->device, depthImageView, nullptr);
+        vkDestroyImageView(dvc->device, colorImageView, nullptr);
+        vkDestroyImage(dvc->device, depthImage, nullptr);
+        vkDestroyImage(dvc->device, colorImage, nullptr);
+
+        for (auto imageView : swapChainImageViews) {
+            vkDestroyImageView(dvc->device, imageView, nullptr);
+        }
+        //vkDestroySwapchainKHR(dvc->device, swapChain, nullptr); // moved to resources.
+    }
+    void cleanup() {
+        vkDestroyRenderPass(dvc->device, renderPass, nullptr);
+        vkDestroyImageView(dvc->device, textureImageView, nullptr);
+        vkDestroyImage(dvc->device, textureImage, nullptr);
+    }
 
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
         for (const auto& availableFormat : availableFormats) {
@@ -593,7 +658,7 @@ public:
     }
 
     void createSwapChain() {
-        std::cout << "createSwapChain() initializing ... " << std::endl;
+        timer.line_init("createSwapChain"); 
         SwapChainSupportDetails swapChainSupport = dvc->querySwapChainSupport(dvc->physicalDevice);
 
         VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
@@ -643,7 +708,7 @@ public:
 
         swapChainImageFormat = surfaceFormat.format;
         swapChainExtent = extent;
-        std::cout << "createSwapChain() Finished!" << std::endl << std::string(60, '=') << std::endl;;
+        timer.line_end("createSwapChain");
     }
 
 
@@ -668,18 +733,18 @@ public:
     }
 
     void createImageViews() {
-        std::cout << "createImageViews() initializing ... " << std::endl;
+        timer.line_init("createImageViews"); 
 
         swapChainImageViews.resize(swapChainImages.size());
 
         for (uint32_t i = 0; i < swapChainImages.size(); i++) {
             swapChainImageViews[i] = createImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
         }
-        std::cout << "createImageViews() Finished!" << std::endl << std::string(60, '=') << std::endl;
+        timer.line_end("createImageViews");
     }
 
     void createRenderPass() {
-        std::cout << "createRenderPass() initializing ... " << std::endl;
+        timer.line_init("createRenderPass"); 
         VkAttachmentDescription colorAttachment{};
         colorAttachment.format = swapChainImageFormat;
         colorAttachment.samples = dvc->msaaSamples;
@@ -750,7 +815,7 @@ public:
         if (vkCreateRenderPass(dvc->device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
             throw std::runtime_error("failed to create render pass!");
         }
-        std::cout << "createRenderPass() Finished!" << std::endl << std::string(60, '=') << std::endl;;
+        timer.line_end("createRenderPass");
     }
 
     void createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
@@ -799,13 +864,11 @@ private:
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
     VkCommandPool commandPool;
-    std::vector<VkFramebuffer> swapChainFramebuffers;
+    
     uint32_t mipLevels;
 
     VkSampler textureSampler;
-    VkDeviceMemory colorImageMemory;
-    VkDeviceMemory depthImageMemory;
-    VkDeviceMemory textureImageMemory;
+    
 
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
@@ -814,12 +877,9 @@ private:
     std::vector<VkDescriptorSet> descriptorSets;
 
     VkBuffer vertexBuffer;
-    VkDeviceMemory vertexBufferMemory;
     VkBuffer indexBuffer;
-    VkDeviceMemory indexBufferMemory;
+        std::vector<VkBuffer> uniformBuffers;
 
-    std::vector<VkBuffer> uniformBuffers;
-    std::vector<VkDeviceMemory> uniformBuffersMemory;
     std::vector<void*> uniformBuffersMapped;
 
     std::vector<VkCommandBuffer> commandBuffers;
@@ -830,14 +890,63 @@ private:
 
     uint32_t currentFrame = 0;
 
+    VkDeviceMemory colorImageMemory;
+    VkDeviceMemory depthImageMemory;
+    VkDeviceMemory textureImageMemory;
+    VkDeviceMemory indexBufferMemory;
+    VkDeviceMemory vertexBufferMemory;
+    std::vector<VkDeviceMemory> uniformBuffersMemory;
+
 public:
 
-    Resources(std::shared_ptr<BaseEnvironment> env, std::shared_ptr<Device> env2, std::shared_ptr<Image> env3) : base(env), dvc(env2), img(env3) {}
+    void cleanup() {
+        vkDestroyPipeline(dvc->device, graphicsPipeline, nullptr);
+        vkDestroyPipelineLayout(dvc->device, pipelineLayout, nullptr);
+        vkDestroyDescriptorPool(dvc->device, descriptorPool, nullptr);
+        vkDestroySampler(dvc->device, textureSampler, nullptr);
+        vkDestroyDescriptorSetLayout(dvc->device, descriptorSetLayout, nullptr);
+
+        vkDestroyBuffer(dvc->device, vertexBuffer, nullptr);
+        vkDestroyBuffer(dvc->device, indexBuffer, nullptr);
+        vkFreeMemory(dvc->device, textureImageMemory, nullptr);
+        vkFreeMemory(dvc->device, vertexBufferMemory, nullptr);
+        vkFreeMemory(dvc->device, indexBufferMemory, nullptr);
+
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            vkDestroySemaphore(dvc->device, renderFinishedSemaphores[i], nullptr);
+            vkDestroySemaphore(dvc->device, imageAvailableSemaphores[i], nullptr);
+            vkDestroyFence(dvc->device, inFlightFences[i], nullptr);
+        }
+
+        vkDestroyCommandPool(dvc->device, commandPool, nullptr);
 
 
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            vkDestroyBuffer(dvc->device, uniformBuffers[i], nullptr);
+            vkFreeMemory(dvc->device, uniformBuffersMemory[i], nullptr);
+        }
+    }
+
+    void cleanupSwapChain() {
+        for (auto framebuffer : swapChainFramebuffers) {
+            vkDestroyFramebuffer(dvc->device, framebuffer, nullptr);
+        }
+        vkFreeMemory(dvc->device, colorImageMemory, nullptr);
+        vkFreeMemory(dvc->device, depthImageMemory, nullptr);
+        vkDestroySwapchainKHR(dvc->device, img->swapChain, nullptr); // move here since must be done last
+    }
+
+    void destroyBuffer() {
+
+    }
+    // expose to free later. might think how to do it from inside. in case overall order does not matter.
+    std::vector<VkFramebuffer> swapChainFramebuffers;
+
+    Resources(std::shared_ptr<BaseEnvironment> env) : base(env) {}
+    void connect(std::shared_ptr<Device> env, std::shared_ptr<Image> env2) { dvc = env; img = env2; };
 
     void createDescriptorSetLayout() {
-        std::cout << "createDescriptorSetLayout() initializing ... " << std::endl;
+        timer.line_init("createDescriptorSetLayout"); 
         VkDescriptorSetLayoutBinding uboLayoutBinding{};
         uboLayoutBinding.binding = 0;
         uboLayoutBinding.descriptorCount = 1;
@@ -861,7 +970,7 @@ public:
         if (vkCreateDescriptorSetLayout(dvc->device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
             throw std::runtime_error("failed to create descriptor set layout!");
         }
-        std::cout << "createDescriptorSetLayout() Finished!" << std::endl << std::string(60, '=') << std::endl;
+        timer.line_end("createDescriptorSetLayout");
     }
 
     VkShaderModule createShaderModule(const std::vector<char>& code) {
@@ -879,7 +988,7 @@ public:
     }
 
     void createGraphicsPipeline() {
-        std::cout << "createGraphicsPipeline() initializing ... " << std::endl;
+        timer.line_init("createGraphicsPipeline"); 
         auto vertShaderCode = readFile("shaders/vert.spv");
         auto fragShaderCode = readFile("shaders/frag.spv");
 
@@ -1001,11 +1110,11 @@ public:
         vkDestroyShaderModule(dvc->device, fragShaderModule, nullptr);
         vkDestroyShaderModule(dvc->device, vertShaderModule, nullptr);
 
-        std::cout << "createGraphicsPipeline() Finished!" << std::endl << std::string(60, '=') << std::endl;
+        timer.line_end("createGraphicsPipeline");
     }
 
     void createCommandPool() {
-        std::cout << "createCommandPool() initializing ... " << std::endl;
+        timer.line_init("createCommandPool"); 
         QueueFamilyIndices queueFamilyIndices = dvc->findQueueFamilies(dvc->physicalDevice);
 
         VkCommandPoolCreateInfo poolInfo{};
@@ -1016,31 +1125,31 @@ public:
         if (vkCreateCommandPool(dvc->device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
             throw std::runtime_error("failed to create graphics command pool!");
         }
-        std::cout << "createCommandPool() Finished!" << std::endl << std::string(60, '=') << std::endl;
+        timer.line_end("createCommandPool");
     }
 
     void createColorResources() {
-        std::cout << "createColorResources() initializing ... " << std::endl;
+        timer.line_init("createColorResources");
         VkFormat colorFormat = img->swapChainImageFormat;
 
         img->createImage(img->swapChainExtent.width, img->swapChainExtent.height, 1, dvc->msaaSamples, colorFormat,
             VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, img->colorImage, colorImageMemory);
         img->colorImageView = img->createImageView(img->colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-        std::cout << "createColorResources() Finished!" << std::endl << std::string(60, '=') << std::endl;
+        timer.line_end("createColorResources");
     }
 
     void createDepthResources() {
-        std::cout << "createDepthResources() initializing ... " << std::endl;
+        timer.line_init("createDepthResources");
         VkFormat depthFormat = dvc->findDepthFormat();
 
         img->createImage(img->swapChainExtent.width, img->swapChainExtent.height, 1, dvc->msaaSamples, depthFormat,
             VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, img->depthImage, depthImageMemory);
         img->depthImageView = img->createImageView(img->depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
-        std::cout << "createDepthResources() Finished!" << std::endl << std::string(60, '=') << std::endl;
+        timer.line_end("createDepthResources");
     }
 
     void createFramebuffers() {
-        std::cout << "createFramebuffers() initializing ... " << std::endl;
+        timer.line_init("createFramebuffers"); 
         swapChainFramebuffers.resize(img->swapChainImageViews.size());
 
         for (size_t i = 0; i < img->swapChainImageViews.size(); i++) {
@@ -1062,8 +1171,8 @@ public:
             if (vkCreateFramebuffer(dvc->device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
                 throw std::runtime_error("failed to create framebuffer!");
             }
-            std::cout << "createFramebuffers() Finished!" << std::endl << std::string(60, '=') << std::endl;
         }
+        timer.line_end("createFramebuffers");
     }
 
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
@@ -1286,10 +1395,13 @@ public:
 
 
     void createTextureImageView() {
+        timer.line_init("createTextureImageView");
         img->textureImageView = createImageView(img->textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels);
+        timer.line_end("createTextureImageView");
     }
 
     void createTextureSampler() {
+        timer.line_init("createTextureSampler");
         VkPhysicalDeviceProperties properties{};
         vkGetPhysicalDeviceProperties(dvc->physicalDevice, &properties);
 
@@ -1314,6 +1426,7 @@ public:
         if (vkCreateSampler(dvc->device, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {
             throw std::runtime_error("failed to create texture sampler!");
         }
+        timer.line_end("createTextureSampler");
     }
 
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) {
@@ -1337,7 +1450,7 @@ public:
     }
 
     void createTextureImage() {
-        std::cout << "createTextureImage() initializing ... " << std::endl;
+        timer.line_init("createTextureImage"); 
         int texWidth, texHeight, texChannels;
         stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         VkDeviceSize imageSize = texWidth * texHeight * 4;
@@ -1368,7 +1481,7 @@ public:
         vkFreeMemory(dvc->device, stagingBufferMemory, nullptr);
 
         generateMipmaps(img->textureImage, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels);
-        std::cout << "createTextureImage() Finished!" << std::endl << std::string(60, '=') << std::endl;
+        timer.line_end("createTextureImage");
     }
 
     void loadModel() {
@@ -1422,6 +1535,7 @@ public:
     }
 
     void createVertexBuffer() {
+        timer.line_init("createVertexBuffer");
         VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
         VkBuffer stagingBuffer;
@@ -1439,9 +1553,11 @@ public:
 
         vkDestroyBuffer(dvc->device, stagingBuffer, nullptr);
         vkFreeMemory(dvc->device, stagingBufferMemory, nullptr);
+        timer.line_end("createVertexBuffer");
     }
 
     void createIndexBuffer() {
+        timer.line_init("createIndexBuffer");
         VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
 
         VkBuffer stagingBuffer;
@@ -1459,9 +1575,11 @@ public:
 
         vkDestroyBuffer(dvc->device, stagingBuffer, nullptr);
         vkFreeMemory(dvc->device, stagingBufferMemory, nullptr);
+        timer.line_end("createIndexBuffer");
     }
 
     void createUniformBuffers() {
+        timer.line_init("createUniformBuffers");
         VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 
         uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
@@ -1473,9 +1591,11 @@ public:
 
             vkMapMemory(dvc->device, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
         }
+        timer.line_end("createUniformBuffers");
     }
 
     void createDescriptorPool() {
+        timer.line_init("createDescriptorPool");
         std::array<VkDescriptorPoolSize, 2> poolSizes{};
         poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
@@ -1491,9 +1611,11 @@ public:
         if (vkCreateDescriptorPool(dvc->device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
             throw std::runtime_error("failed to create descriptor pool!");
         }
+        timer.line_end("createDescriptorPool");
     }
 
     void createDescriptorSets() {
+        timer.line_init("createDescriptorSets");
         std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
         VkDescriptorSetAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -1537,10 +1659,12 @@ public:
 
             vkUpdateDescriptorSets(dvc->device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
         }
+        timer.line_end("createDescriptorSets");
     }
 
 
     void createCommandBuffers() {
+        timer.line_init("createCommandBuffers");
         commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 
         VkCommandBufferAllocateInfo allocInfo{};
@@ -1552,9 +1676,11 @@ public:
         if (vkAllocateCommandBuffers(dvc->device, &allocInfo, commandBuffers.data()) != VK_SUCCESS) {
             throw std::runtime_error("failed to allocate command buffers!");
         }
+        timer.line_end("createCommandBuffers");
     }
 
     void createSyncObjects() {
+        timer.line_init("createSyncObjects");
         imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
         renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
         inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
@@ -1573,6 +1699,7 @@ public:
                 throw std::runtime_error("failed to create synchronization objects for a frame!");
             }
         }
+        timer.line_end("createSyncObjects");
     }
 
     void updateUniformBuffer(uint32_t currentImage) {
@@ -1647,6 +1774,25 @@ public:
         }
     }
 
+    void recreateSwapChain() {
+        int width = 0, height = 0;
+        glfwGetFramebufferSize(base->window, &width, &height);
+        while (width == 0 || height == 0) {
+            glfwGetFramebufferSize(base->window, &width, &height);
+            glfwWaitEvents();
+        }
+
+        vkDeviceWaitIdle(dvc->device);
+
+        cleanupSwapChain();
+
+        img->createSwapChain();
+        img->createImageViews();
+        createColorResources();
+        createDepthResources();
+        createFramebuffers();
+    }
+
     void drawFrame() {
         vkWaitForFences(dvc->device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
@@ -1654,7 +1800,7 @@ public:
         VkResult result = vkAcquireNextImageKHR(dvc->device, img->swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-            //recreateSwapChain();
+            recreateSwapChain();
             return;
         }
         else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
@@ -1702,25 +1848,47 @@ public:
 
         result = vkQueuePresentKHR(dvc->presentQueue, &presentInfo);
 
-        /*if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || base->framebufferResized) {
-            framebufferResized = false;
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || base->framebufferResized) {
+            base->framebufferResized = false;
             recreateSwapChain();
         }
         else if (result != VK_SUCCESS) {
             throw std::runtime_error("failed to present swap chain image!");
-        }*/
+        }
 
         currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
     }
 
 };
 
-// Static callback function
-void UI::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
-    auto app = reinterpret_cast<UI*>(glfwGetWindowUserPointer(window));
-    app->framebufferResized = true; // Set the framebufferResized flag
-}
+class Cleanup { // order of cleanup is not perfect. if ur srs take great care.
+private:
+    std::shared_ptr<BaseEnvironment> base;
+    std::shared_ptr<DebugEnvironment> deb;
+    std::shared_ptr<Device> dvc;
+    std::shared_ptr<Image> img;
+    std::shared_ptr<Resources> res;
+public:
+    Cleanup(std::shared_ptr<BaseEnvironment> env) : base(env) {}
 
+    void connect(std::shared_ptr<Device> env, std::shared_ptr<Image> env2, std::shared_ptr<Resources> env3) { dvc = env, img = env2, res = env3; };
+
+    void cleanupSwapChain() {
+        img->cleanupSwapChain();
+        res->cleanupSwapChain();
+    }
+
+    void cleanup() {
+        timer.line_init("cleanup");
+        cleanupSwapChain();
+        img->cleanup();
+        res->cleanup();
+        dvc->cleanup();
+        //deb->cleanup(base); // get error- base became NULL
+        base->cleanup();
+        timer.line_end("cleanup");
+    }
+};
 
 std::vector<const char*> UI::getRequiredExtensions() {
     uint32_t glfwExtensionCount = 0;
@@ -1736,18 +1904,20 @@ std::vector<const char*> UI::getRequiredExtensions() {
     return extensions;
 }
 
-
-
-
 int main() {
     std::shared_ptr<BaseEnvironment> pBase = std::make_shared<BaseEnvironment>();
     std::shared_ptr<DebugEnvironment> pDebug = std::make_shared<DebugEnvironment>(pBase);
-    std::shared_ptr<UI> pUI = std::make_shared<UI>(pBase, pDebug);
+    std::shared_ptr<UI> pUI = std::make_shared<UI>(pBase);
+    pUI->connect(pDebug);
     std::shared_ptr<Device> pDvc = std::make_shared<Device>(pBase);
-    std::shared_ptr<Image> pImg = std::make_shared<Image>(pBase, pDvc);
-    std::shared_ptr<Resources> pRes = std::make_shared<Resources>(pBase, pDvc, pImg);
+    std::shared_ptr<Image> pImg = std::make_shared<Image>(pBase);
+    pImg->connect(pDvc);
+    std::shared_ptr<Resources> pRes = std::make_shared<Resources>(pBase);
+    pRes->connect(pDvc, pImg);
+    std::shared_ptr<Cleanup> pCln = std::make_shared<Cleanup>(pBase);
+    pCln->connect(pDvc, pImg, pRes);
+
     try {
-        pUI->asd();
         pUI->initWindow();
         pUI->createInstance();
         pDebug->setupDebugMessenger();
@@ -1778,9 +1948,10 @@ int main() {
         while (!glfwWindowShouldClose(pBase->window)) {
             glfwPollEvents();
             pRes->drawFrame();
-            //std::cout << "\b" << pUI->framebufferResized;
+            //std::cout << "\b" << pUI->print();
         }
-        //pUI -> run();
+        pCln->cleanup();
+        //std::cout << pBase.get();
 
     }
     catch (const std::exception& e) {
