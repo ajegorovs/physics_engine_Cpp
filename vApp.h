@@ -1,6 +1,7 @@
 #pragma once
 #include "partUno.h"
 #include "partDos.h"
+#include "partTres.h"
 
 class VApp {
 public:

@@ -137,16 +137,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="config.h" />
-    <ClInclude Include="partDos.h" />
-    <ClInclude Include="partUno.h" />
-    <ClInclude Include="vApp.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="config.cpp" />
-    <ClCompile Include="mainApp.cpp" />
-    <ClCompile Include="partDos.cpp" />
-    <ClCompile Include="partUno.cpp" />
     <ClCompile Include="vApp.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

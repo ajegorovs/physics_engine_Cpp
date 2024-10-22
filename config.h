@@ -9,6 +9,7 @@
 #include <glm/gtx/hash.hpp>
 #include <fstream>
 #include <cstdint>
+#include <stdint.h>
 #include <vector>
 #include <optional>
 #include <stdexcept>
