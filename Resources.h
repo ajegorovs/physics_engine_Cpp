@@ -104,6 +104,8 @@ public:
 
     void createTextureImage();
 
+    void processScene(const std::vector<std::unique_ptr<geometric_shape>>& scene);
+
     void loadModel();
 
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);

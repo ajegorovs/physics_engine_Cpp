@@ -1,5 +1,7 @@
 #include "Resources.h"
 #include <fstream>
+#include <vector>
+#include <memory>
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
@@ -603,6 +605,35 @@ void Resources::createTextureImage() {
     timer.line_end("createTextureImage");
 }
 
+
+void Resources::processScene(const std::vector<std::unique_ptr<geometric_shape>>& scene) {
+    float id = 0;
+    for (const auto& shape : scene) {
+        for (uint32_t i = 0; i < shape->colors.size(); i++) {
+            glm::vec4 coord = shape->vertices[i];
+            glm::vec3 color = shape->colors[i];
+            //std::cout << glm::to_string(coord) << std::endl;
+            Vertex vertex{ {coord.x,coord.y,coord.z}, {color.x,color.y,color.z}, {0.0f, 0.0f}, 0.0f,  id};
+            vertices.push_back(vertex);
+            id++;
+        }
+        
+        uint32_t maxValue = 0;
+        uint32_t offset = 0;
+        if (!indices.empty()) {
+            auto maxIt = std::max_element(indices.begin(), indices.end());
+            maxValue = *maxIt;
+            offset = 1;
+        }
+        
+        for (auto& index : shape->indices) {
+            indices.push_back(index + offset + maxValue);
+        }
+
+    }
+}
+
+
 void Resources::loadModel() {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
@@ -827,7 +858,7 @@ void Resources::updateUniformBuffer(uint32_t currentImage) {
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
     UniformBufferObject ubo{};
-    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.model = glm::rotate(glm::mat4(1.0f), 0*time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), img->swapChainExtent.width / (float)img->swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
@@ -976,3 +1007,4 @@ void Resources::drawFrame() {
 
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
+
