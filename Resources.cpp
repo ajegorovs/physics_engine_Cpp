@@ -915,7 +915,6 @@ void Resources::updateStorageBuffer(uint32_t currentImage) {
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
     StorageBufferObject sbo{};
-    //std::array<float> rots{}
     for (size_t i = 0; i < sbo.model.size(); i++) {
         sbo.model[i] = glm::rotate(glm::mat4(1.0f), static_cast<float>(pow(-1, i) * 2 * i) * time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
        
