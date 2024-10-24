@@ -1,7 +1,6 @@
 #pragma once
 
 #include <iostream>
-//#include <cstdint>
 
 // Window dimensions
 const uint32_t WIDTH = 800;

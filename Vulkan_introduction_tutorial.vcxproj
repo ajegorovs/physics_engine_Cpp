@@ -137,39 +137,36 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="BaseEnvironment.cpp" />
-    <ClCompile Include="Cleanup.cpp" />
+    <ClCompile Include="buffers.cpp" />
+    <ClCompile Include="commands.cpp" />
     <ClCompile Include="debug2.cpp" />
-    <ClCompile Include="DebugEnvironment.cpp" />
-    <ClCompile Include="Device.cpp" />
     <ClCompile Include="device2.cpp" />
     <ClCompile Include="engine.cpp" />
     <ClCompile Include="glfw_support.cpp" />
-    <ClCompile Include="Image.cpp" />
-    <ClCompile Include="memory.cpp" />
-    <ClCompile Include="Resources.cpp" />
+    <ClCompile Include="main2.cpp" />
+    <ClCompile Include="render.cpp" />
+    <ClCompile Include="resources2.cpp" />
+    <ClCompile Include="shapes.cpp" />
     <ClCompile Include="swapchain.cpp" />
+    <ClCompile Include="sync.cpp" />
     <ClCompile Include="Timer.cpp" />
-    <ClCompile Include="UI.cpp" />
-    <ClCompile Include="vApp.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BaseEnvironment.h" />
-    <ClInclude Include="Cleanup.h" />
+    <ClInclude Include="buffers.h" />
+    <ClInclude Include="commands.h" />
     <ClInclude Include="config.h" />
     <ClInclude Include="debug2.h" />
-    <ClInclude Include="DebugEnvironment.h" />
-    <ClInclude Include="Device.h" />
     <ClInclude Include="device2.h" />
     <ClInclude Include="engine.h" />
     <ClInclude Include="glfw_support.h" />
-    <ClInclude Include="memory.h" />
-    <ClInclude Include="Image.h" />
-    <ClInclude Include="Resources.h" />
+    <ClInclude Include="render.h" />
+    <ClInclude Include="resources2.h" />
+    <ClInclude Include="shapes.h" />
     <ClInclude Include="structs.h" />
     <ClInclude Include="swapchain.h" />
+    <ClInclude Include="sync.h" />
     <ClInclude Include="Timer.h" />
-    <ClInclude Include="UI.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

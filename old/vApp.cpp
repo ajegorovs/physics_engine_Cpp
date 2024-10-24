@@ -10,7 +10,7 @@
 #include "Cleanup.h"
 
 
-int main() {
+int main322() {
     std::shared_ptr<BaseEnvironment> pBase = std::make_shared<BaseEnvironment>();
     std::shared_ptr<DebugEnvironment> pDebug = std::make_shared<DebugEnvironment>(pBase);
     std::shared_ptr<UI> pUI = std::make_shared<UI>(pBase);

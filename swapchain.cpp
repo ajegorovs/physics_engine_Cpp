@@ -2,8 +2,10 @@
 #include "device2.h"
 #include <algorithm>
 
-Swapchain::Swapchain(VkSurfaceKHR* surface, VkDevice* device, VkPhysicalDevice* physicalDevice, GLFWwindow* window):
-    physicalDevice(physicalDevice), surface(surface), device(device), window(window) {};
+Swapchain::Swapchain(){}
+
+Swapchain::Swapchain(VkSurfaceKHR* surface_in, VkDevice* device_in, VkPhysicalDevice* physicalDevice_in):
+    surface(surface_in), device(device_in), physicalDevice(physicalDevice_in){};
 
 // local createSwapChain.
 VkSurfaceFormatKHR Swapchain::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
@@ -26,7 +28,7 @@ VkPresentModeKHR Swapchain::chooseSwapPresentMode(const std::vector<VkPresentMod
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 // local createSwapChain.
-VkExtent2D Swapchain::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
+VkExtent2D Swapchain::chooseSwapExtent(GLFWwindow* window, const VkSurfaceCapabilitiesKHR& capabilities) {
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
         return capabilities.currentExtent;
     }
@@ -46,12 +48,12 @@ VkExtent2D Swapchain::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilit
     }
 }
 // Vulkan init
-void Swapchain::createSwapChain() {
+void Swapchain::createSwapChain(GLFWwindow* window) {
     SwapChainSupportDetails swapChainSupport = Device2::querySwapChainSupport(*surface, *physicalDevice);
 
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
     VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
-    VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
+    VkExtent2D extent = chooseSwapExtent(window, swapChainSupport.capabilities);
 
     uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
     if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
@@ -97,6 +99,7 @@ void Swapchain::createSwapChain() {
     swapChainImageFormat = surfaceFormat.format;
     swapChainExtent = extent;
 }
+
 // non-local: createColorResources,createDepthResources,createTextureImageView
 // local createImageViews
 VkImageView Swapchain::createImageView(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels) {
@@ -125,5 +128,17 @@ void Swapchain::createImageViews() {
     for (uint32_t i = 0; i < swapChainImages.size(); i++) {
         swapChainImageViews[i] = createImageView(*device, swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     }
+}
+
+void Swapchain::cleanupSwapChain2() {
+    for (auto framebuffer : swapChainFramebuffers) {
+        vkDestroyFramebuffer(*device, framebuffer, nullptr);
+    }
+
+    for (auto imageView : swapChainImageViews) {
+        vkDestroyImageView(*device, imageView, nullptr);
+    }
+
+    vkDestroySwapchainKHR(*device, swapChain, nullptr);
 }
 

@@ -1,5 +1,9 @@
 #include "device2.h"
 //#include "Timer.h"
+#include <iostream>
+#include <set>
+
+Device2::Device2() {};
 
 Device2::Device2(VkInstance* instance, VkSurfaceKHR* surface, VkDevice* device) :
     instance(instance), surface(surface), device(device){};
@@ -23,7 +27,7 @@ QueueFamilyIndices Device2::findQueueFamilies(VkSurfaceKHR surface, VkPhysicalDe
         }
 
         VkBool32 presentSupport = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+        vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport);
 
         if (presentSupport) {
             indices.presentFamily = i;
@@ -40,8 +44,12 @@ QueueFamilyIndices Device2::findQueueFamilies(VkSurfaceKHR surface, VkPhysicalDe
 }
 
 // local isDeviceSuitable,createLogicalDevice. surface referenced from Engine, physicalDevice is local;
+// isDeviceSuitable checks all physical devices. physicalDevice is not yet determined.
+QueueFamilyIndices Device2::findQueueFamilies(VkPhysicalDevice physicalDevice) {
+    return findQueueFamilies(*surface, physicalDevice);
+}
 QueueFamilyIndices Device2::findQueueFamilies() {
-    return findQueueFamilies(*surface,physicalDevice);
+    return findQueueFamilies(*surface, physicalDevice);
 }
 // only used in isDeviceSuitable - private;
 bool Device2::checkDeviceExtensionSupport(VkPhysicalDevice device) {
@@ -84,19 +92,19 @@ SwapChainSupportDetails Device2::querySwapChainSupport(VkSurfaceKHR surface, VkP
     return details;
 }
 //local: isDeviceSuitable
-SwapChainSupportDetails Device2::querySwapChainSupport() {
+SwapChainSupportDetails Device2::querySwapChainSupport(VkPhysicalDevice physicalDevice) {
     return querySwapChainSupport(*surface, physicalDevice);
 }
 
-//local: pickPhysicalDevice - private;
+//local: pickPhysicalDevice - private; 
 bool Device2::isDeviceSuitable(VkPhysicalDevice physicalDevice) {
-    QueueFamilyIndices indices = findQueueFamilies();
+    QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
     bool extensionsSupported = checkDeviceExtensionSupport(physicalDevice);
 
     bool swapChainAdequate = false;
     if (extensionsSupported) {
-        SwapChainSupportDetails swapChainSupport = querySwapChainSupport();
+        SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
         swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
     }
 
@@ -148,7 +156,7 @@ void Device2::pickPhysicalDevice() {
 }
 
 uint32_t Device2::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
-    findMemoryType(physicalDevice, typeFilter, properties);
+    return findMemoryType(physicalDevice, typeFilter, properties);
 }
 
 uint32_t Device2::findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
@@ -164,7 +172,8 @@ uint32_t Device2::findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeF
 }
 
 // vulkan init - public
-void Device2::createLogicalDevice(const std::vector<const char*> validationLayers, VkQueue graphicsQueue, VkQueue presentQueue) {
+// set pointers to device, graphicsQueue and presentQueue
+void Device2::createLogicalDevice(const std::vector<const char*> validationLayers, VkQueue* graphicsQueue, VkQueue* presentQueue) {
     QueueFamilyIndices indices = findQueueFamilies();
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
@@ -206,6 +215,30 @@ void Device2::createLogicalDevice(const std::vector<const char*> validationLayer
         throw std::runtime_error("failed to create logical device!");
     }
 
-    vkGetDeviceQueue(*device, indices.graphicsFamily.value(), 0, &graphicsQueue);
-    vkGetDeviceQueue(*device, indices.presentFamily.value(), 0, &presentQueue);
+    vkGetDeviceQueue(*device, indices.graphicsFamily.value(), 0, graphicsQueue);
+    vkGetDeviceQueue(*device, indices.presentFamily.value(), 0, presentQueue);
+}
+// local findDepthFormat. but thats not local
+VkFormat Device2::findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
+    for (VkFormat format : candidates) {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
+
+        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) {
+            return format;
+        }
+        else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features) {
+            return format;
+        }
+    }
+
+    throw std::runtime_error("failed to find supported format!");
+}
+// non-local, createRenderPass, createDepthResources
+VkFormat Device2::findDepthFormat() {
+    return findSupportedFormat(
+        { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+    );
 }

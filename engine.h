@@ -1,10 +1,16 @@
 #pragma once
-#include "memory.h"
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+#include "config.h"
 #include "device2.h"
 #include "debug2.h"
 #include "glfw_support.h"
 #include "swapchain.h"
-
+#include "render.h"
+#include "resources2.h"
+#include "buffers.h"
+#include "commands.h"
+#include "sync.h"
 
 class Engine {
 public:
@@ -16,11 +22,24 @@ public:
 	VkQueue presentQueue;
 	void createInstance();
 	void run();
+	
 private:
-	Device2 dvc;
-	Debug2 dbg;
 	GLFW_support glfw_s;
-	//Swapchain swp; inside run()
+	Debug2 dbg;
+	Device2 dvc;
+	Swapchain swp;
+	Render rndr;
+	Resources res;
+	Buffers bfr;
+	Commands cmd;
+	Sync sync;
+	uint32_t currentFrame = 0;
 	const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
-
+	void updateUniformBuffer(uint32_t currentImage);
+	void updateStorageBuffer(uint32_t currentImage);
+	void drawFrame();
+	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+	void recreateSwapChain();
+	void cleanup();
 };
+
