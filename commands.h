@@ -11,6 +11,7 @@ public:
     VkPhysicalDevice* physicalDevice;
     VkSurfaceKHR* surface;
     std::vector<VkCommandBuffer> commandBuffers;
+    //std::vector<VkCommandBuffer> computeCommandBuffers;
 
     Commands();
     Commands(VkDevice* device, VkPhysicalDevice* physicalDevice, VkSurfaceKHR* surface);
@@ -20,4 +21,6 @@ public:
     static void endSingleTimeCommands(VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool, VkCommandBuffer commandBuffer);
     void endSingleTimeCommands(VkQueue graphicsQueue, VkCommandBuffer commandBuffer);
     void createCommandBuffers();
+    //void createComputeCommandBuffers();
+    void copyBufferToImage(VkQueue graphicsQueue, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 };

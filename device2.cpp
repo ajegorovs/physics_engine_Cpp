@@ -1,14 +1,15 @@
 #include "device2.h"
-//#include "Timer.h"
 #include <iostream>
 #include <set>
+
+// Notes: 
+// 1) findQueueFamilies keeps searching for device thats also compute compatible
+// 2) validation complaned about VK_IMAGE_TILING_OPTIMAL. did not resolve.
 
 Device2::Device2() {};
 
 Device2::Device2(VkInstance* instance, VkSurfaceKHR* surface, VkDevice* device) :
     instance(instance), surface(surface), device(device){};
-
-
 
 // non-local: createSwapChain,createCommandPool . need sufrace (engine) and physDev (device2).
 QueueFamilyIndices Device2::findQueueFamilies(VkSurfaceKHR surface, VkPhysicalDevice physicalDevice) {
@@ -22,8 +23,8 @@ QueueFamilyIndices Device2::findQueueFamilies(VkSurfaceKHR surface, VkPhysicalDe
 
     int i = 0;
     for (const auto& queueFamily : queueFamilies) {
-        if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-            indices.graphicsFamily = i;
+        if ((queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) && (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)) {
+            indices.graphicsAndComputeFamily = i;
         }
 
         VkBool32 presentSupport = false;
@@ -169,7 +170,7 @@ uint32_t Device2::findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeF
         }
     }
     throw std::runtime_error("failed to find suitable memory type!");
-}
+};
 
 // vulkan init - public
 // set pointers to device, graphicsQueue and presentQueue
@@ -177,7 +178,7 @@ void Device2::createLogicalDevice(const std::vector<const char*> validationLayer
     QueueFamilyIndices indices = findQueueFamilies();
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+    std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsAndComputeFamily.value(), indices.presentFamily.value() };
 
     float queuePriority = 1.0f;
     for (uint32_t queueFamily : uniqueQueueFamilies) {
@@ -215,7 +216,7 @@ void Device2::createLogicalDevice(const std::vector<const char*> validationLayer
         throw std::runtime_error("failed to create logical device!");
     }
 
-    vkGetDeviceQueue(*device, indices.graphicsFamily.value(), 0, graphicsQueue);
+    vkGetDeviceQueue(*device, indices.graphicsAndComputeFamily.value(), 0, graphicsQueue);
     vkGetDeviceQueue(*device, indices.presentFamily.value(), 0, presentQueue);
 }
 // local findDepthFormat. but thats not local

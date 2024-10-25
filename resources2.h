@@ -10,8 +10,6 @@ class Resources {
 public:
 	Resources();
 	Resources(VkDevice* device, VkSurfaceKHR* surface, VkPhysicalDevice* physicalDevice, VkSampleCountFlagBits* msaaSamples);
-	static std::vector<char> readFile(const std::string& filename);
-	//VkCommandPool commandPool;
 	VkImage colorImage;
 	VkDeviceMemory colorImageMemory;
 	VkImageView colorImageView;

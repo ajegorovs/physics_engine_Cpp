@@ -3,7 +3,6 @@
 #include <GLFW/glfw3.h>
 #include "config.h"
 #include "structs.h"
-
 #include <vector>
 
 // Logic: Device2 keeps strictiyl device related stuff. it uses pointers for higher stuff.

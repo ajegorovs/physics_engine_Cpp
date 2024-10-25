@@ -1,5 +1,10 @@
 # Vulkan_introduction_tutorial
 
+take-aways:
+* (23/10/24) Learned about static methods, which allow you use class methods without "spawning" class instances. THIS IS A GAMECHANGER!
+* (24/10/24) GPU has many levels of memory access for CPU. Shaders need data on GPU. "Closest" memory to CPU is "host-visible". In tutorial mesh was loaded into device-local memory. We displayed transformed vertex data by applying matrix transformation onto initial geometry. Transformation matrices were stored in Uniform buffers on hist-visible memory.
+* (25/10/24) Descriptor Set Layout hold info about collection of memory resources available for shaders. Layout contains following info for each resources: index (binding), resource type and which shaders stages have acces to it (stageFlags)
+
 Challenges and approaches to solution, sort of evolution:
 
 go through https://vulkan-tutorial.com/Introduction and start chaping your own "engine".

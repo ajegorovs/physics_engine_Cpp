@@ -145,14 +145,12 @@
     <ClCompile Include="glfw_support.cpp" />
     <ClCompile Include="main2.cpp" />
     <ClCompile Include="render.cpp" />
-    <ClCompile Include="resources2.cpp" />
     <ClCompile Include="shapes.cpp" />
     <ClCompile Include="swapchain.cpp" />
     <ClCompile Include="sync.cpp" />
     <ClCompile Include="Timer.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="BaseEnvironment.h" />
     <ClInclude Include="buffers.h" />
     <ClInclude Include="commands.h" />
     <ClInclude Include="config.h" />
@@ -161,7 +159,6 @@
     <ClInclude Include="engine.h" />
     <ClInclude Include="glfw_support.h" />
     <ClInclude Include="render.h" />
-    <ClInclude Include="resources2.h" />
     <ClInclude Include="shapes.h" />
     <ClInclude Include="structs.h" />
     <ClInclude Include="swapchain.h" />

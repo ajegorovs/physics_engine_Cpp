@@ -7,7 +7,7 @@
 #include "glfw_support.h"
 #include "swapchain.h"
 #include "render.h"
-#include "resources2.h"
+//#include "resources2.h"
 #include "buffers.h"
 #include "commands.h"
 #include "sync.h"
@@ -20,6 +20,7 @@ public:
 	VkDevice device;
 	VkQueue graphicsQueue;
 	VkQueue presentQueue;
+	VkQueue computeQueue;
 	void createInstance();
 	void run();
 	
@@ -29,16 +30,22 @@ private:
 	Device2 dvc;
 	Swapchain swp;
 	Render rndr;
-	Resources res;
+	//Resources res;
 	Buffers bfr;
 	Commands cmd;
 	Sync sync;
 	uint32_t currentFrame = 0;
+	//float lastFrameTime = 0.0f;
+	//double lastTime = 0.0f;
+	//uint32_t num_frames = 0;
 	const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
 	void updateUniformBuffer(uint32_t currentImage);
+	//void updateParticleUniformBuffer(uint32_t currentImage);
 	void updateStorageBuffer(uint32_t currentImage);
+	//void updateShaderStorageBuffer(uint32_t currentImage);
 	void drawFrame();
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+	//void recordComputeCommandBuffer(VkCommandBuffer commandBuffer);
 	void recreateSwapChain();
 	void cleanup();
 };

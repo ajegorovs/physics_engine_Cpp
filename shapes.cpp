@@ -3,13 +3,14 @@
 #include <glm/gtx/euler_angles.hpp> 
 #include "glm/ext.hpp"
 #include <cmath> // idk 
+#include <iostream>
 
 Plane::Plane(glm::vec3 s, glm::vec3 c, glm::vec2 rotZY) : geometric_shape("Plane", c, rotZY), sides(s) {
     vertices.insert(vertices.end(), {
-                                    {-0.5f, -0.5f, 0.0f, 0.f},
-                                    {0.5f, -0.5f, 0.0f, 0.f},
-                                    {0.5f, 0.5f, 0.0f, 0.f},
-                                    {-0.5f, 0.5f, 0.0f, 0.f}
+                                    {-0.5f,-0.5f, 0.0f, 1.f},
+                                    {0.5f, -0.5f, 0.0f, 1.f},
+                                    {0.5f,  0.5f, 0.0f, 1.f},
+                                    {-0.5f, 0.5f, 0.0f, 1.f}
         });
 
     transform(vertices.size(), rotZY, sides);
@@ -18,10 +19,10 @@ Plane::Plane(glm::vec3 s, glm::vec3 c, glm::vec2 rotZY) : geometric_shape("Plane
 
 Prism::Prism(glm::vec3 s, glm::vec3 c, glm::vec2 rotZY) : geometric_shape("Prism", c, rotZY), sides(s) {
 
-    vertices.insert(vertices.end(), { {-0.5f, -0.5f, -0.5f, 0.f},{ 0.5f, -0.5f, -0.5f, 0.f},
-                                    { 0.5f,  0.5f, -0.5f, 0.f}, {-0.5f,  0.5f, -0.5f, 0.f},
-                                    {-0.5f, -0.5f,  0.5f, 0.f}, { 0.5f, -0.5f,  0.5f, 0.f},
-                                    { 0.5f,  0.5f,  0.5f, 0.f}, {-0.5f,  0.5f,  0.5f, 0.f} });
+    vertices.insert(vertices.end(), { {-0.5f, -0.5f, -0.5f, 1.f},{ 0.5f, -0.5f, -0.5f, 1.f},
+                                    { 0.5f,  0.5f, -0.5f, 1.f}, {-0.5f,  0.5f, -0.5f, 1.f},
+                                    {-0.5f, -0.5f,  0.5f, 1.f}, { 0.5f, -0.5f,  0.5f, 1.f},
+                                    { 0.5f,  0.5f,  0.5f, 1.f}, {-0.5f,  0.5f,  0.5f, 1.f} });
 
     transform(vertices.size(), rotZY, sides);
 
@@ -36,19 +37,26 @@ Prism::Prism(glm::vec3 s, glm::vec3 c, glm::vec2 rotZY) : geometric_shape("Prism
 geometric_shape::geometric_shape(const std::string t, glm::vec3 c, glm::vec2 rotZY) : id(0), type(t), center(c), rotationZY(rotZY) {}
 
 void geometric_shape::transform(int numVerts, glm::vec2 rotationZYAngles, glm::vec3 sides) {
-    glm::mat4 rotate = glm::mat4(1.0f);
-    rotate = glm::rotate(rotate, rotationZYAngles.x, glm::vec3(0.0f, 1.0f, 0.0f));      // Yaw
-    rotate = glm::rotate(rotate, rotationZYAngles.y, glm::vec3(1.0f, 0.0f, 0.0f));      // Pitch
-    //rotate = glm::rotate(rotate, roll, glm::vec3(0.0f, 0.0f, 1.0f));
 
+    /*glm::mat4 ViewTranslate = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+    std::cout << glm::to_string(ViewTranslate) << std::endl;
+    glm::vec4 res = ViewTranslate * glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+    std::cout << glm::to_string(res) << std::endl;*/
+    glm::mat4 transform = glm::mat4(1.0f);
+    transform = glm::rotate(transform, rotationZYAngles.x, glm::vec3(0.0f, 1.0f, 0.0f));
+    transform = glm::scale(transform, sides);
+    transform = glm::translate(transform, center);
+    
+    //rotate = glm::rotate(rotate, rotationZYAngles.x, glm::vec3(0.0f, 1.0f, 0.0f));      // Yaw
+    //rotate = glm::rotate(rotate, rotationZYAngles.y, glm::vec3(1.0f, 0.0f, 0.0f));      // Pitch
     //glm::mat4 rotate = glm::yawPitchRoll(rotationZYAngles.x, rotationZYAngles.y, glm::radians(0.0f));
     //auto rotate = glm::eulerAngleZY(rotationZYAngles.x, rotationZYAngles.y);
-    auto scale = glm::diagonal4x4(glm::vec4(sides, 0));
+
     for (size_t i = 0; i < vertices.size(); i++) {
         // set colors to [0,1] range
         colors.push_back(glm::vec3(vertices[i].x, vertices[i].y, vertices[i].z) + glm::vec3(0.5f, 0.5f, 0.5f));
         // rotate using eulerian X->Z angles (while prism is centeted), rescale and translate;
-        vertices[i] = scale * rotate * vertices[i] + glm::vec4(center, 0.0f);
+        vertices[i] =  transform * vertices[i];
     }
 };
 geometric_shape::geometric_shape():id(0) {};
