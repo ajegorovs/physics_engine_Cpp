@@ -17,10 +17,15 @@ Engine::Engine() :
     sync(&device),
     rndr(&device, &dvc.msaaSamples),
     cmd(&device, &dvc.physicalDevice, &surface),
-    bfr(&device, &dvc.physicalDevice, &cmd.commandPool, &graphicsQueue) {}
+    bfr(&device, &dvc.physicalDevice, &cmd.commandPool, &graphicsQueue) 
+{
+}
+
+
 
 void Engine::run() 
 {
+    //std::cout << VkApplicationInfo::apiVersion() << std::endl;
     constexpr float pi = glm::pi<float>();
     std::vector<std::unique_ptr<geometric_shape>> scene;
     scene.push_back(std::make_unique<Plane>(glm::vec3(3, 3, 0)      , glm::vec3(0, 0, 0)    , glm::vec2(0, 0)));
@@ -31,10 +36,11 @@ void Engine::run()
     glfw_s.initWindow();                                                    // window
     // === VULKAN === //
     createInstance();                                                       // instance
-    dbg.setupDebugMessenger(instance);
+    dbg.setupDebugMessenger(instance, device);
     glfw_s.createSurface(instance, &surface);
 	dvc.pickPhysicalDevice();                                               // physicalDevice
     dvc.createLogicalDevice(validationLayers, &graphicsQueue, &presentQueue); // device, graphicsQueue and presentQueue
+    vkCmdSetPrimitiveTopologyEXT = (PFN_vkCmdSetPrimitiveTopologyEXT)vkGetDeviceProcAddr(device, "vkCmdSetPrimitiveTopologyEXT");
     swp.createSwapChain(glfw_s.window);
     swp.createImageViews();
     rndr.createRenderPass(swp.swapChainImageFormat, dvc.findDepthFormat()); // renderPass
@@ -82,6 +88,7 @@ void Engine::run()
 //Vulkan init
 void Engine::createInstance() 
 {
+    
     if (enableValidationLayers && !Debug2::checkValidationLayerSupport(validationLayers)) {
         throw std::runtime_error("validation layers requested, but not available!");
     }
@@ -92,7 +99,7 @@ void Engine::createInstance()
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "No Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_0;
+    appInfo.apiVersion = VK_API_VERSION_1_3;
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -170,7 +177,7 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
     if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
         throw std::runtime_error("failed to begin recording command buffer!");
     }
-
+    
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderPass = rndr.renderPass;
@@ -186,6 +193,7 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
     renderPassInfo.pClearValues = clearValues.data();
 
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
 
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rndr.graphicsPipeline);
 
@@ -211,6 +219,9 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
 
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rndr.pipelineLayout, 0, 1, &swp.descriptorSets[currentFrame], 0, nullptr);
 
+    vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+    vkCmdSetLineWidth(commandBuffer, 10.0f);
+    
     vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(bfr.indices.size()), 1, 0, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);

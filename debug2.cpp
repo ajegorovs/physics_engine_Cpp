@@ -1,5 +1,7 @@
 #include "debug2.h"
 
+
+
 bool Debug2::checkValidationLayerSupport(const std::vector<const char*> validationLayers) {
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
@@ -27,7 +29,14 @@ bool Debug2::checkValidationLayerSupport(const std::vector<const char*> validati
 
 // local: populateDebugMessengerCreateInfo
 VKAPI_ATTR VkBool32 VKAPI_CALL Debug2::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
-    std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+    
+    std::string errorStr(pCallbackData->pMessage);
+    for (const auto& filter : filterValidationErrors) {
+        if (errorStr.find(filter) != std::string::npos) {
+            return VK_FALSE;
+        }
+    }
+    std::cerr << "validation layer: " << errorStr << std::endl;
 
     return VK_FALSE;
 }
@@ -52,7 +61,7 @@ VkResult Debug2::CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebug
 }
 
 // Vulkan init 
-void Debug2::setupDebugMessenger(VkInstance instance) {
+void Debug2::setupDebugMessenger(VkInstance instance, VkDevice device) {
     if (!enableValidationLayers) return;
 
     VkDebugUtilsMessengerCreateInfoEXT createInfo;

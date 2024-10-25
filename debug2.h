@@ -4,11 +4,12 @@
 #include "config.h"
 #include <vector>
 #include <iostream>
+#include <string>
 
 class Debug2 {
 public:
 	static bool checkValidationLayerSupport(const std::vector<const char*> validationLayers);
-	void setupDebugMessenger(VkInstance instance);
+	void setupDebugMessenger(VkInstance instance, VkDevice device);
 	VkDebugUtilsMessengerEXT debugMessenger;
 	static void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 	void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);

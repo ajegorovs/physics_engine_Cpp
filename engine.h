@@ -35,9 +35,11 @@ private:
 	Commands cmd;
 	Sync sync;
 	uint32_t currentFrame = 0;
+	PFN_vkCmdSetPrimitiveTopologyEXT vkCmdSetPrimitiveTopologyEXT = nullptr;
 	//float lastFrameTime = 0.0f;
 	//double lastTime = 0.0f;
 	//uint32_t num_frames = 0;
+	
 	const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
 	void updateUniformBuffer(uint32_t currentImage);
 	//void updateParticleUniformBuffer(uint32_t currentImage);

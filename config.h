@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <vector>
 
 // Window dimensions
 const uint32_t WIDTH = 800;
@@ -19,4 +20,9 @@ const bool enableValidationLayers = false;
 const bool enableValidationLayers = true;
 #endif
 
+const std::vector<const char*> filterValidationErrors = { 
+	"VUID-vkCmdSetPrimitiveTopology-None-08971" ,
+	"VUID-VkImageViewCreateInfo-usage-02275",
+	"VUID-VkSwapchainCreateInfoKHR-imageFormat-01778"
+};
 

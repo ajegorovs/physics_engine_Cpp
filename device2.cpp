@@ -190,8 +190,31 @@ void Device2::createLogicalDevice(const std::vector<const char*> validationLayer
         queueCreateInfos.push_back(queueCreateInfo);
     }
 
-    VkPhysicalDeviceFeatures deviceFeatures{};
-    deviceFeatures.samplerAnisotropy = VK_TRUE;
+    VkPhysicalDeviceExtendedDynamicState3PropertiesEXT extendedDynamicState3Props{};
+    extendedDynamicState3Props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_PROPERTIES_EXT;
+    extendedDynamicState3Props.dynamicPrimitiveTopologyUnrestricted = VK_TRUE; // not sure if needed.
+
+    VkPhysicalDeviceProperties2 physicalDeviceProperties{};
+    physicalDeviceProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    physicalDeviceProperties.pNext = &extendedDynamicState3Props;
+
+    vkGetPhysicalDeviceProperties2(physicalDevice, &physicalDeviceProperties);
+
+    VkPhysicalDeviceFeatures2 deviceFeatures2{};
+    deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    deviceFeatures2.features.wideLines = VK_TRUE;
+    // Check if dynamicPrimitiveTopologyUnrestricted is supported
+    if (extendedDynamicState3Props.dynamicPrimitiveTopologyUnrestricted) {
+        deviceFeatures2.features.samplerAnisotropy = VK_TRUE; // Existing feature
+        // Set the dynamicPrimitiveTopologyUnrestricted to VK_TRUE
+        deviceFeatures2.pNext = nullptr; // No further structures at this point
+    }
+    else {
+        throw std::runtime_error("dynamicPrimitiveTopologyUnrestricted feature is not supported.");
+    }
+
+    /*VkPhysicalDeviceFeatures deviceFeatures{};
+    deviceFeatures.samplerAnisotropy = VK_TRUE;*/
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -199,10 +222,11 @@ void Device2::createLogicalDevice(const std::vector<const char*> validationLayer
     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
 
-    createInfo.pEnabledFeatures = &deviceFeatures;
 
     createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+
+    createInfo.pNext = &deviceFeatures2;
 
     if (enableValidationLayers) {
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());

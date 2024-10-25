@@ -11,7 +11,12 @@ private:
 	VkInstance* instance;
 	VkSurfaceKHR* surface;
 	VkDevice* device;
-	const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+	const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, 
+		"VK_EXT_extended_dynamic_state",  
+		"VK_EXT_extended_dynamic_state2",  
+		"VK_EXT_extended_dynamic_state3" ,
+		"VK_EXT_shader_object",
+	};
 	bool checkDeviceExtensionSupport(VkPhysicalDevice device);
 	bool isDeviceSuitable(VkPhysicalDevice device);
 	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice physicalDevice);
