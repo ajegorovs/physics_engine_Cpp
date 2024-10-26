@@ -26,3 +26,21 @@ It worked for stbi, and probly for tiny_obj_loader.
 https://stackoverflow.com/questions/43348798/double-inclusion-and-headers-only-library-stbi-image
 
 
+comments for simple particles:
+goal- draw particles as individual vertices.
+
+need particle parameters in a struct.
+
+have to store particle data
+
+1) where they will be stored ? 
+Storage case 1 (my easy):
+Storage buffer - can be modified.
+Storage case 2:
+Device local memory, can be modified by compute shaders.
+
+Lets make a storage buffer for vertex shader access (MPV transformation only) and fragment shader for coloring.
+Need descriptor set layout first VK_DESCRIPTOR_TYPE_STORAGE_BUFFER-VK_SHADER_STAGE_VERTEX_BIT.
+createDescriptorSets_StorageParticles - .range = sizeof(point3D) * PARTICLE_COUNT;
+create buffer - 
+

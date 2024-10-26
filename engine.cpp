@@ -7,7 +7,7 @@
 #include <memory>
 #include <chrono>
 #include <glm/ext/scalar_constants.hpp>
-
+#include <random>  
 
 
 Engine::Engine() :
@@ -44,13 +44,14 @@ void Engine::run()
     swp.createSwapChain(glfw_s.window);
     swp.createImageViews();
     rndr.createRenderPass(swp.swapChainImageFormat, dvc.findDepthFormat()); // renderPass
-    rndr.createDescriptorSetLayout();                                       // descriptorSetLayout
-    //rndr.createComputeDescriptorSetLayout();
 
-    rndr.createGraphicsPipeline();                                          // pipelineLayout, graphicsPipeline
-    //rndr.createParticleGraphicsPipeline();
+    rndr.createDescriptorSetLayout_uniformMVP();
+    rndr.createDescriptorSetLayout_multi_MPV_TS_TRN();                                       // descriptorSetLayout_multi_MPV_TS_TRN
+    rndr.createDescriptorSetLayout_storageParticles();
 
-    //rndr.createComputePipeline();
+    rndr.createGraphicsPipeline_storageVertices();                           // pipelineLayout, graphicsPipeline
+    rndr.createGraphicsPipeline_storageParticles();                          // pipelineLayout, graphicsPipeline
+
     cmd.createCommandPool();                                                // commandPool
     swp.createColorResources();                                             // colorImageView
     swp.createDepthResources(dvc.findDepthFormat());                        // depthImageView
@@ -58,18 +59,28 @@ void Engine::run()
     swp.createTextureImage(cmd, graphicsQueue);                             //
     swp.createTextureImageView();
     swp.createTextureSampler();                                             //
-    bfr.processScene(scene);
+
+    bfr.processScene(scene);                                                // yeet vertices, indices and IDs into pre-buffers
+
     bfr.createVertexBuffer();
     bfr.createIndexBuffer();
-    bfr.createUniformBuffers();
-    //bfr.createParticleUniformBuffers();
-    bfr.createStorageBuffers();
-    //bfr.createShaderStorageBuffers();
+
+    bfr.createBuffer_uniformMVP();
+    bfr.createBuffer_storageTransformations();
+    bfr.createBuffer_storageParticles();                                    // will act as vertex buffer for particles
+
     swp.createDescriptorPool();                                             //descriptorPool
-    swp.createDescriptorSets(rndr.descriptorSetLayout, bfr.uniformBuffers, bfr.storageBuffers);
-    //swp.createComputeDescriptorSets(rndr.computeDescriptorSetLayout, bfr.particleUniformBuffers, bfr.shaderStorageBuffers);
+    swp.createDescriptorSets_multi_MPV_TS_TRN(
+        rndr.descriptorSetLayout_multi_MPV_TS_TRN, 
+        bfr.buffer_uniformMVP,
+        bfr.buffer_storageTransformations);
+    swp.createDescriptorSets_uniformMVP(
+        &rndr.descriptorSetLayout_uniformMVP,
+        bfr.buffer_uniformMVP);
+    //swp.createDescriptorSets_storageParticles(
+    //    &rndr.descriptorSetLayout_storageParticles,
+    //    bfr.buffer_storageParticles);
     cmd.createCommandBuffers();
-    //cmd.createComputeCommandBuffers();
     sync.createSyncObjects();
 
     while (!glfwWindowShouldClose(glfw_s.window)) {
@@ -128,20 +139,75 @@ void Engine::createInstance()
     }
 }
 
+void Engine::updateBufferMapped_storageParticles() {
+   /* static auto startTime = std::chrono::high_resolution_clock::now();
+
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();*/
+
+    /*float scaleFactor = 3.0f*std::cos(5.0f * time);
+
+    glm::mat4 transform = glm::scale(glm::mat4(1.0f), glm::vec3(scaleFactor, scaleFactor, scaleFactor));
+
+    point3D* particles = reinterpret_cast<point3D*>(buffer);
+
+    std::cout <<" "<< scaleFactor<<" " << particles[8].damping << std::endl;*/
+
+    if (1 == 0) {
+
+        std::default_random_engine rndEngine((unsigned)time(nullptr));
+        std::uniform_real_distribution<float> rndDist(-1.0f, 1.0f);
+
+        // init
+        float id = 0;
+        std::vector<point3D> particles(PARTICLE_COUNT);
+        for (auto& particle : particles) {
+            particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 1.0f);
+            particle.position = glm::vec3(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine));
+            particle.velocity = glm::vec3(0.0f, 0.0f, 0.0f);
+            particle.acceleration = glm::vec3(0.0f, 0.0f, 0.0f);
+            particle.mass = glm::float32(1.0);
+            particle.damping = glm::float32(id);
+
+            id += 0.1;
+        }
+
+        VkDeviceSize bufferSize = sizeof(point3D) * PARTICLE_COUNT;
+
+        memcpy(bfr.bufferMapped_storageParticles[currentFrame], particles.data(), (size_t)bufferSize);
+
+    };
+
+    point3D* particles = reinterpret_cast<point3D*>(bfr.bufferMapped_storageParticles[currentFrame]);
+
+    static auto startTime2 = std::chrono::high_resolution_clock::now();
+    auto currentTime2 = std::chrono::high_resolution_clock::now();
+    float time2 = std::chrono::duration<float, std::chrono::seconds::period>(currentTime2 - startTime2).count();
+
+    float scaleFactor = 1.0f + 0.01f * std::cos(glm::radians(90.0f)* time2) ;
+
+    glm::mat4 transform = glm::scale(glm::mat4(1.0f), glm::vec3(scaleFactor, scaleFactor, scaleFactor));
+
+    for (size_t i = 0; i < PARTICLE_COUNT; i++) {
+        particles[i].position = (transform * glm::vec4(particles[i].position, 1.0f)).xyz;
+    }
+}
+
 void Engine::updateUniformBuffer(uint32_t currentImage) {
     static auto startTime = std::chrono::high_resolution_clock::now();
 
     auto currentTime = std::chrono::high_resolution_clock::now();
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
-    UniformBufferObject ubo{};
+    StructMVP ubo{};
     ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), swp.swapChainExtent.width / (float)swp.swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
 
-    memcpy(bfr.uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
+    memcpy(bfr.bufferMapped_uniformMVP[currentImage], &ubo, sizeof(ubo));
 }
+
 
 //void Engine::updateParticleUniformBuffer(uint32_t currentImage) {
 //    ParticleUniformBufferObject pubo{};
@@ -156,7 +222,7 @@ void Engine::updateStorageBuffer(uint32_t currentImage) {
     auto currentTime = std::chrono::high_resolution_clock::now();
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
-    StorageBufferObject sbo{};
+    StructObjectTransformations sbo{};
     for (size_t i = 0; i < sbo.model.size(); i++) {
         float omega = static_cast<float>(pow(-1, i) * 2 * i) * glm::radians(90.0f);
         glm::vec3 axis_rot(0.f, 0.f, 1.f);
@@ -167,7 +233,7 @@ void Engine::updateStorageBuffer(uint32_t currentImage) {
         sbo.model[i] = glm::translate(transform, axis_trans);
 
     }
-    memcpy(bfr.storageBuffersMapped[currentImage], &sbo, sizeof(sbo));
+    memcpy(bfr.bufferMapped_storageTransformtions[currentImage], &sbo, sizeof(sbo));
 }
 
 void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
@@ -194,9 +260,6 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
 
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rndr.graphicsPipeline);
-
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
@@ -212,17 +275,33 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
     VkDeviceSize offsets[] = { 0 };
-    VkBuffer vertexBuffers[] = { bfr.vertexBuffer };
+
+     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rndr.graphicsPipeline_particles);
+
+    VkBuffer vertexBuffers[] = { bfr.buffer_storageParticles[currentFrame]};
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rndr.pipelineLayout_particles, 0, 1, &swp.descriptorSets_uniformMVP[currentFrame], 0, nullptr);
+
+    vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+    vkCmdSetLineWidth(commandBuffer, 3.0f);
+
+    vkCmdDraw(commandBuffer, static_cast<uint32_t>(PARTICLE_COUNT), 1, 0, 0);
+
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rndr.graphicsPipeline);
+
+    VkBuffer vertexBuffers2[] = { bfr.vertexBuffer };
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers2, offsets);
 
     vkCmdBindIndexBuffer(commandBuffer, bfr.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rndr.pipelineLayout, 0, 1, &swp.descriptorSets[currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rndr.pipelineLayout, 0, 1, &swp.descriptorSets_multi_MPV_TS_TRN[currentFrame], 0, nullptr);
 
-    vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
-    vkCmdSetLineWidth(commandBuffer, 10.0f);
-    
+    vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    //vkCmdSetLineWidth(commandBuffer, 10.0f);
+
     vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(bfr.indices.size()), 1, 0, 0, 0);
+
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -361,6 +440,8 @@ void Engine::drawFrame() {
     }
 
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    updateBufferMapped_storageParticles();
+
 }
 
 void Engine::cleanup() {

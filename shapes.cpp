@@ -68,3 +68,5 @@ geometric_shape::geometric_shape():id(0) {};
 //scene.push_back(std::make_unique<Cube>(1., glm::vec3(0, 0, 0), glm::vec2(0, 0)));
 //auto prism_type = scene[0] -> type;*/
 
+
+

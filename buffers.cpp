@@ -51,7 +51,7 @@ void Buffers::createBuffer(VkDevice device, VkPhysicalDevice physicalDevice, VkD
     bufferInfo.size = size;
     bufferInfo.usage = usage;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    // gives a handle for, still abstrac buffer object. we have to fill it.
+    // gives a handle for, still abstract buffer object. we have to fill it.
     if (vkCreateBuffer(device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to create buffer!");
     }
@@ -136,55 +136,82 @@ void Buffers::createVertexBuffer() {
     vkFreeMemory(*device, stagingBufferMemory, nullptr);
 }
 
-void Buffers::createUniformBuffers() {
+void Buffers::createBuffer_uniformMVP() {
     // shader data should be on GPU. it at least can be host-visible
     // but better performance would be "deeper" on GPU.
-    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+    VkDeviceSize bufferSize = sizeof(StructMVP);
+    
+    buffer_uniformMVP.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_uniformMVP.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMapped_uniformMVP.resize(MAX_FRAMES_IN_FLIGHT);
 
-    uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-    uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
-    uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
-
-    // uniform buffer, memory type - host visible. no need for staging.
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
+        createBuffer(
+            bufferSize, 
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+            buffer_uniformMVP[i], 
+            bufferMemory_uniformMVP[i]
+        );
 
-        vkMapMemory(*device, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
+        vkMapMemory(*device, bufferMemory_uniformMVP[i], 0, bufferSize, 0, &bufferMapped_uniformMVP[i]);
+        // unmap memory ?
     }
 }
 
-//void Buffers::createParticleUniformBuffers() {
-//    // shader data should be on GPU. it at least can be host-visible
-//    // but better performance would be "deeper" on GPU.
-//    VkDeviceSize bufferSize = sizeof(ParticleUniformBufferObject);
-//
-//    particleUniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-//    particleUniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
-//    particleUniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
-//
-//    // uniform buffer, memory type - host visible. no need for staging.
-//    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-//        createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, particleUniformBuffers[i], particleUniformBuffersMemory[i]);
-//
-//        vkMapMemory(*device, particleUniformBuffersMemory[i], 0, bufferSize, 0, &particleUniformBuffersMapped[i]);
-//    }
-//}
-
-void Buffers::createStorageBuffers() {
+void Buffers::createBuffer_storageTransformations() {
     // Custom storage buffer. but same logic of host-visible memory.
-    VkDeviceSize bufferSize = sizeof(StorageBufferObject);
+    VkDeviceSize bufferSize = sizeof(StructObjectTransformations);
 
-    storageBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-    storageBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
-    storageBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+    buffer_storageTransformations.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_storageTransformations.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMapped_storageTransformtions.resize(MAX_FRAMES_IN_FLIGHT);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        createBuffer(bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, storageBuffers[i], storageBuffersMemory[i]);
+        createBuffer(bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, 
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+            buffer_storageTransformations[i], bufferMemory_storageTransformations[i]);
 
-        vkMapMemory(*device, storageBuffersMemory[i], 0, bufferSize, 0, &storageBuffersMapped[i]);
+        vkMapMemory(*device, bufferMemory_storageTransformations[i], 0, bufferSize, 0, &bufferMapped_storageTransformtions[i]);
     }
 }
 
+void Buffers::createBuffer_storageParticles() {
+    // Custom storage buffer. but same logic of host-visible memory.
+    VkDeviceSize bufferSize = sizeof(point3D) * PARTICLE_COUNT;
+
+    buffer_storageParticles.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_storageParticles.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMapped_storageParticles.resize(MAX_FRAMES_IN_FLIGHT);
+
+    std::default_random_engine rndEngine((unsigned)time(nullptr));
+    std::uniform_real_distribution<float> rndDist(-1.0f, 1.0f);
+
+    // init
+    float id = 0;
+    std::vector<point3D> particles(PARTICLE_COUNT);
+    for (auto& particle : particles) {
+        particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 0.5f * 0.5f *(rndDist(rndEngine) + 1.0f));
+        particle.position = glm::vec3(rndDist(rndEngine), rndDist(rndEngine), 0.2f + 0.2f*rndDist(rndEngine));
+        particle.velocity = glm::vec3(0.0f, 0.0f,0.0f);
+        particle.acceleration = glm::vec3(0.0f, 0.0f, 0.0f);
+        particle.mass = glm::float32(1.0);
+        particle.damping = glm::float32(id);
+
+        id += 0.1;
+    }
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBuffer(bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+            buffer_storageParticles[i], bufferMemory_storageParticles[i]);
+
+        // get a pointer bufferMapped_ to a memory block of type bufferMemory_ and of size bufferSize
+        vkMapMemory(*device, bufferMemory_storageParticles[i], 0, bufferSize, 0, &bufferMapped_storageParticles[i]);
+        // copy particle data of size bufferSize to storage buffer bufferMapped_.
+        memcpy(bufferMapped_storageParticles[i], particles.data(), (size_t)bufferSize);
+        vkUnmapMemory(*device, bufferMemory_storageParticles[i]);
+    }
+}
 //void Buffers::createShaderStorageBuffers() {
 //    // We will store data "deep" in GPU on device-local memory. No access for CPU (?).
 //    // we again use staging buffer to transfer data to GPU.
@@ -233,12 +260,13 @@ void Buffers::clearBuffers1(){
     }
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        vkDestroyBuffer(*device, uniformBuffers[i], nullptr);
-        vkDestroyBuffer(*device, storageBuffers[i], nullptr);
-        //vkDestroyBuffer(*device, shaderStorageBuffers[i], nullptr);
-        vkFreeMemory(   *device, uniformBuffersMemory[i], nullptr);
-        vkFreeMemory(   *device, storageBuffersMemory[i], nullptr);
-        //vkFreeMemory(*device, shaderStorageBuffersMemory[i], nullptr);
+        vkDestroyBuffer(*device, buffer_uniformMVP[i], nullptr);
+        vkDestroyBuffer(*device, buffer_storageTransformations[i], nullptr);
+        vkDestroyBuffer(*device, buffer_storageParticles[i], nullptr);
+
+        vkFreeMemory(   *device, bufferMemory_uniformMVP[i], nullptr);
+        vkFreeMemory(   *device, bufferMemory_storageTransformations[i], nullptr);
+        vkFreeMemory(   *device, bufferMemory_storageParticles[i], nullptr);
     }
 }
 

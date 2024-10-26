@@ -425,11 +425,11 @@ void Swapchain::createDescriptorPool() {
     // each is duplicated twice for MAX_FRAMES_IN_FLIGHT
     std::array<VkDescriptorPoolSize, 3> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * (1);// <<<
+    poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * (10);// <<<
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * (1);// <<<
+    poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * (10);// <<<
     poolSizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSizes[2].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * (1);// <<<
+    poolSizes[2].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * (10);// <<<
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -442,8 +442,74 @@ void Swapchain::createDescriptorPool() {
     }
 }
 
+void Swapchain::createDescriptorSets_single(
+    VkDescriptorSetLayout* descriptorSetLayout,
+    std::vector<VkDescriptorSet>& descriptionSet,
+    std::vector<VkBuffer>& buffer,
+    unsigned long long range,
+    int binding,
+    VkDescriptorType descriptorType
+    ) {
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, *descriptorSetLayout);
+    VkDescriptorSetAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorPool; // one pool for all
+    allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    allocInfo.pSetLayouts = layouts.data();
+
+    descriptionSet.resize(MAX_FRAMES_IN_FLIGHT);
+    VkResult result = vkAllocateDescriptorSets(*device, &allocInfo, descriptionSet.data());
+    std::cout << result << std::endl;
+    if (result != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate descriptor sets!");
+    }
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = buffer[i];
+        bufferInfo.offset = 0;
+        bufferInfo.range = range;
+
+        VkWriteDescriptorSet descriptorWrites{};
+
+        descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites.dstSet = descriptionSet[i];
+        descriptorWrites.dstBinding = binding;
+        descriptorWrites.dstArrayElement = 0;
+        descriptorWrites.descriptorType = descriptorType;
+        descriptorWrites.descriptorCount = 1;
+        descriptorWrites.pBufferInfo = &bufferInfo;
+
+        vkUpdateDescriptorSets(*device, 1, &descriptorWrites, 0, nullptr);
+    }
+}
+
+
+void Swapchain::createDescriptorSets_uniformMVP(VkDescriptorSetLayout* descriptorSetLayout, std::vector<VkBuffer>& buffer) {
+    createDescriptorSets_single(
+        descriptorSetLayout,
+        descriptorSets_uniformMVP,
+        buffer,
+        sizeof(StructMVP),
+        0,
+        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
+    );
+}
+
+void Swapchain::createDescriptorSets_storageParticles(VkDescriptorSetLayout* descriptorSetLayout, std::vector<VkBuffer>& buffer) {
+    createDescriptorSets_single(
+        descriptorSetLayout,
+        descriptorSets_storageParticles,
+        buffer,
+        sizeof(point3D) * PARTICLE_COUNT,
+        0,
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+    );
+}
+
 // During creation (update?) of Descriptor Set we bind actual buffers (to bindings/indices), specify sizes and offsets.
-void Swapchain::createDescriptorSets(VkDescriptorSetLayout descriptorSetLayout, std::vector<VkBuffer> uniformBuffers, std::vector<VkBuffer> storageBuffers) {
+void Swapchain::createDescriptorSets_multi_MPV_TS_TRN(VkDescriptorSetLayout descriptorSetLayout, std::vector<VkBuffer> uniformBuffers, std::vector<VkBuffer> storageBuffer) {
     std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -451,8 +517,8 @@ void Swapchain::createDescriptorSets(VkDescriptorSetLayout descriptorSetLayout, 
     allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
     allocInfo.pSetLayouts = layouts.data();
 
-    descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-    if (vkAllocateDescriptorSets(*device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
+    descriptorSets_multi_MPV_TS_TRN.resize(MAX_FRAMES_IN_FLIGHT);
+    if (vkAllocateDescriptorSets(*device, &allocInfo, descriptorSets_multi_MPV_TS_TRN.data()) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate descriptor sets!");
     }
 
@@ -460,7 +526,7 @@ void Swapchain::createDescriptorSets(VkDescriptorSetLayout descriptorSetLayout, 
         VkDescriptorBufferInfo bufferInfo{};
         bufferInfo.buffer = uniformBuffers[i];
         bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(UniformBufferObject);
+        bufferInfo.range = sizeof(StructMVP);
 
         VkDescriptorImageInfo imageInfo{};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -468,14 +534,14 @@ void Swapchain::createDescriptorSets(VkDescriptorSetLayout descriptorSetLayout, 
         imageInfo.sampler = textureSampler;
 
         VkDescriptorBufferInfo bufferInfo2{};
-        bufferInfo2.buffer = storageBuffers[i];
+        bufferInfo2.buffer = storageBuffer[i];
         bufferInfo2.offset = 0;
-        bufferInfo2.range = sizeof(StorageBufferObject);
+        bufferInfo2.range = sizeof(StructObjectTransformations);
 
         std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
 
         descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[0].dstSet = descriptorSets[i];
+        descriptorWrites[0].dstSet = descriptorSets_multi_MPV_TS_TRN[i];
         descriptorWrites[0].dstBinding = 0;
         descriptorWrites[0].dstArrayElement = 0;
         descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -483,7 +549,7 @@ void Swapchain::createDescriptorSets(VkDescriptorSetLayout descriptorSetLayout, 
         descriptorWrites[0].pBufferInfo = &bufferInfo;
 
         descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[1].dstSet = descriptorSets[i];
+        descriptorWrites[1].dstSet = descriptorSets_multi_MPV_TS_TRN[i];
         descriptorWrites[1].dstBinding = 1;
         descriptorWrites[1].dstArrayElement = 0;
         descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -491,7 +557,7 @@ void Swapchain::createDescriptorSets(VkDescriptorSetLayout descriptorSetLayout, 
         descriptorWrites[1].pImageInfo = &imageInfo;
 
         descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[2].dstSet = descriptorSets[i];
+        descriptorWrites[2].dstSet = descriptorSets_multi_MPV_TS_TRN[i];
         descriptorWrites[2].dstBinding = 2;
         descriptorWrites[2].dstArrayElement = 0;
         descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;

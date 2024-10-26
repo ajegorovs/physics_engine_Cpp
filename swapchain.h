@@ -38,10 +38,22 @@ public:
 	void createTextureImageView();
 	void createTextureSampler();
 	VkDescriptorPool descriptorPool;
-	std::vector<VkDescriptorSet> descriptorSets;
+	std::vector<VkDescriptorSet> descriptorSets_multi_MPV_TS_TRN;
+	std::vector<VkDescriptorSet> descriptorSets_storageParticles;
+	std::vector<VkDescriptorSet> descriptorSets_uniformMVP;
 	//std::vector<VkDescriptorSet> computeDescriptorSets;
-	void createDescriptorPool(); // Render-> createDescriptorSetLayout
-	void createDescriptorSets(VkDescriptorSetLayout descriptorSetLayout, std::vector<VkBuffer> uniformBuffers, std::vector<VkBuffer> storageBuffers);
+	void createDescriptorPool(); // Render-> createDescriptorSetLayout_multi_MPV_TS_TRN
+	void createDescriptorSets_multi_MPV_TS_TRN(VkDescriptorSetLayout descriptorSetLayout, std::vector<VkBuffer> uniformBuffers, std::vector<VkBuffer> storageBuffer);
+	void createDescriptorSets_single(
+		VkDescriptorSetLayout* descriptorSetLayout,
+		std::vector<VkDescriptorSet>& descriptionSet,
+		std::vector<VkBuffer>& buffer,
+		unsigned long long range,
+		int binding,
+		VkDescriptorType descriptorType
+		);
+	void createDescriptorSets_storageParticles(VkDescriptorSetLayout* descriptorSetLayout, std::vector<VkBuffer>& storageBuffer);
+	void createDescriptorSets_uniformMVP(VkDescriptorSetLayout* descriptorSetLayout, std::vector<VkBuffer>& storageBuffer);
 	//void createComputeDescriptorSets(VkDescriptorSetLayout computeDescriptorSetLayout, std::vector<VkBuffer> uniformBuffers, std::vector<VkBuffer> shaderStorageBuffers);
 	void cleanupSwapChain();
 	void cleanupRest();
