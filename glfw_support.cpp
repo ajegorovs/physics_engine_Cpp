@@ -3,7 +3,7 @@
 
 GLFW_support::GLFW_support()
 {
-    std::cout <<"GLFW_support: window <-" << window;
+    //std::cout <<"GLFW_support: window <-" << window;
 }
 
 void GLFW_support::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
@@ -38,8 +38,8 @@ std::vector<const char*> GLFW_support::getRequiredExtensions() {
     return extensions;
 }
 
-void GLFW_support::createSurface(VkInstance instance, VkSurfaceKHR* surface) {
-    if (glfwCreateWindowSurface(instance, window, nullptr, surface) != VK_SUCCESS) {
+void GLFW_support::createSurface(VkInstance instance, VkSurfaceKHR* pSurface) {
+    if (glfwCreateWindowSurface(instance, window, nullptr, pSurface) != VK_SUCCESS) {
         throw std::runtime_error("failed to create window surface!");
     }
 }

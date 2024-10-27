@@ -8,7 +8,7 @@
 
 class Buffers {
 public:
-	VkDevice* device;
+	VkDevice* pDevice;
 	VkPhysicalDevice* physicalDevice;
 	VkCommandPool* commandPool;
 	VkQueue* graphicsQueue;
@@ -19,9 +19,9 @@ public:
 	std::vector<VkBuffer> buffer_uniformMVP;
 
 	Buffers();
-	Buffers(VkDevice* device, VkPhysicalDevice* physicalDevice, VkCommandPool* commandPool, VkQueue* graphicsQueue);
+	Buffers(VkDevice * pDevice, VkPhysicalDevice* physicalDevice, VkCommandPool* commandPool, VkQueue* graphicsQueue);
 	static void createBuffer(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-	void processScene(const std::vector<std::unique_ptr<geometric_shape>>& scene);
+	void processScene(const std::vector<std::unique_ptr<geometric_shape>>& pScene);
 	void createVertexBuffer();
 	void createIndexBuffer();
 

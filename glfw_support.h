@@ -10,7 +10,7 @@ public:
 	GLFW_support();
 	void initWindow();
 	static std::vector<const char*> getRequiredExtensions();
-	void createSurface(VkInstance instance, VkSurfaceKHR* surface);
+	void createSurface(VkInstance instance, VkSurfaceKHR* pSurface);
 	bool framebufferResized = false;
 private:
 	static void framebufferResizeCallback(GLFWwindow* window, int width, int height);

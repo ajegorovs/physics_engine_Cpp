@@ -8,8 +8,8 @@
 
 Device2::Device2() {};
 
-Device2::Device2(VkInstance* instance, VkSurfaceKHR* surface, VkDevice* device) :
-    instance(instance), surface(surface), device(device){};
+Device2::Device2(VkInstance* pInstance, VkSurfaceKHR* pSurface, VkDevice* pDevice) :
+    pInstance(pInstance), pSurface(pSurface), pDevice(pDevice){};
 
 // non-local: createSwapChain,createCommandPool . need sufrace (engine) and physDev (device2).
 QueueFamilyIndices Device2::findQueueFamilies(VkSurfaceKHR surface, VkPhysicalDevice physicalDevice) {
@@ -47,10 +47,10 @@ QueueFamilyIndices Device2::findQueueFamilies(VkSurfaceKHR surface, VkPhysicalDe
 // local isDeviceSuitable,createLogicalDevice. surface referenced from Engine, physicalDevice is local;
 // isDeviceSuitable checks all physical devices. physicalDevice is not yet determined.
 QueueFamilyIndices Device2::findQueueFamilies(VkPhysicalDevice physicalDevice) {
-    return findQueueFamilies(*surface, physicalDevice);
+    return findQueueFamilies(*pSurface, physicalDevice);
 }
 QueueFamilyIndices Device2::findQueueFamilies() {
-    return findQueueFamilies(*surface, physicalDevice);
+    return findQueueFamilies(*pSurface, physicalDevice);
 }
 // only used in isDeviceSuitable - private;
 bool Device2::checkDeviceExtensionSupport(VkPhysicalDevice device) {
@@ -94,7 +94,7 @@ SwapChainSupportDetails Device2::querySwapChainSupport(VkSurfaceKHR surface, VkP
 }
 //local: isDeviceSuitable
 SwapChainSupportDetails Device2::querySwapChainSupport(VkPhysicalDevice physicalDevice) {
-    return querySwapChainSupport(*surface, physicalDevice);
+    return querySwapChainSupport(*pSurface, physicalDevice);
 }
 
 //local: pickPhysicalDevice - private; 
@@ -133,14 +133,14 @@ VkSampleCountFlagBits Device2::getMaxUsableSampleCount() {
 void Device2::pickPhysicalDevice() {
     //timer.line_init("pickPhysicalDevice");
     uint32_t deviceCount = 0;
-    vkEnumeratePhysicalDevices(*instance, &deviceCount, nullptr);
+    vkEnumeratePhysicalDevices(*pInstance, &deviceCount, nullptr);
 
     if (deviceCount == 0) {
         throw std::runtime_error("failed to find GPUs with Vulkan support!");
     }
 
     std::vector<VkPhysicalDevice> devices(deviceCount);
-    vkEnumeratePhysicalDevices(*instance, &deviceCount, devices.data());
+    vkEnumeratePhysicalDevices(*pInstance, &deviceCount, devices.data());
 
     for (const auto& device : devices) {
         if (isDeviceSuitable(device)) {
@@ -156,10 +156,6 @@ void Device2::pickPhysicalDevice() {
     //timer.line_end("pickPhysicalDevice");
 }
 
-uint32_t Device2::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
-    return findMemoryType(physicalDevice, typeFilter, properties);
-}
-
 uint32_t Device2::findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
@@ -172,9 +168,13 @@ uint32_t Device2::findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeF
     throw std::runtime_error("failed to find suitable memory type!");
 };
 
+uint32_t Device2::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+    return findMemoryType(physicalDevice, typeFilter, properties);
+}
+
 // vulkan init - public
 // set pointers to device, graphicsQueue and presentQueue
-void Device2::createLogicalDevice(const std::vector<const char*> validationLayers, VkQueue* graphicsQueue, VkQueue* presentQueue) {
+void Device2::createLogicalDevice(const std::vector<const char*> validationLayers, VkQueue * pGraphicsQueue, VkQueue * pPresentQueue) {
     QueueFamilyIndices indices = findQueueFamilies();
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
@@ -236,12 +236,12 @@ void Device2::createLogicalDevice(const std::vector<const char*> validationLayer
         createInfo.enabledLayerCount = 0;
     }
 
-    if (vkCreateDevice(physicalDevice, &createInfo, nullptr, device) != VK_SUCCESS) {
+    if (vkCreateDevice(physicalDevice, &createInfo, nullptr, pDevice) != VK_SUCCESS) {
         throw std::runtime_error("failed to create logical device!");
     }
 
-    vkGetDeviceQueue(*device, indices.graphicsAndComputeFamily.value(), 0, graphicsQueue);
-    vkGetDeviceQueue(*device, indices.presentFamily.value(), 0, presentQueue);
+    vkGetDeviceQueue(*pDevice, indices.graphicsAndComputeFamily.value(), 0, pGraphicsQueue);
+    vkGetDeviceQueue(*pDevice, indices.presentFamily.value(), 0, pPresentQueue);
 }
 // local findDepthFormat. but thats not local
 VkFormat Device2::findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {

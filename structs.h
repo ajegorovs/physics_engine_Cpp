@@ -105,6 +105,7 @@ struct LineSegment3D
     glm::vec3 p2;
 
 };
+
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsAndComputeFamily;
     std::optional<uint32_t> presentFamily;

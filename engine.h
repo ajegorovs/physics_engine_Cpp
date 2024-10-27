@@ -6,8 +6,9 @@
 #include "debug2.h"
 #include "glfw_support.h"
 #include "swapchain.h"
-#include "render.h"
-//#include "resources2.h"
+#include "graphics.h"
+#include "descriptors.h"
+#include "sync.h"
 #include "buffers.h"
 #include "commands.h"
 #include "sync.h"
@@ -29,8 +30,8 @@ private:
 	Debug2 dbg;
 	Device2 dvc;
 	Swapchain swp;
-	Render rndr;
-	//Resources res;
+	Graphics gfx;
+	Descriptors dscr;
 	Buffers bfr;
 	Commands cmd;
 	Sync sync;

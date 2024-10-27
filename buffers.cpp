@@ -10,13 +10,13 @@
 
 Buffers::Buffers(){}
 
-Buffers::Buffers(VkDevice* device, VkPhysicalDevice* physicalDevice, VkCommandPool* commandPool, VkQueue* graphicsQueue) :
-    device(device), physicalDevice(physicalDevice), commandPool(commandPool), graphicsQueue(graphicsQueue){}
+Buffers::Buffers(VkDevice * pDevice, VkPhysicalDevice* physicalDevice, VkCommandPool* commandPool, VkQueue* graphicsQueue) :
+    pDevice(pDevice), physicalDevice(physicalDevice), commandPool(commandPool), graphicsQueue(graphicsQueue){}
 
 
-void Buffers::processScene(const std::vector<std::unique_ptr<geometric_shape>>& scene) {
+void Buffers::processScene(const std::vector<std::unique_ptr<geometric_shape>>& pScene) {
     float id = 0;
-    for (const auto& shape : scene) {
+    for (const auto& shape : pScene) {
 
         for (uint32_t i = 0; i < shape->colors.size(); i++) {
             glm::vec4 coord = shape->vertices[i];
@@ -74,18 +74,18 @@ void Buffers::createBuffer(VkDevice device, VkPhysicalDevice physicalDevice, VkD
 // local createVertexBuffer, createIndexBuffer, createUniformBuffers, static buffer.
 void Buffers::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
 {
-    createBuffer(*device, *physicalDevice, size, usage, properties, buffer, bufferMemory);
+    createBuffer(*pDevice, *physicalDevice, size, usage, properties, buffer, bufferMemory);
 }
 
 // local createVertexBuffer, createIndexBuffer,  createUniformBuffers, static buffer
 void Buffers::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
-    VkCommandBuffer commandBuffer = Commands::beginSingleTimeCommands(*device, *commandPool);
+    VkCommandBuffer commandBuffer = Commands::beginSingleTimeCommands(*pDevice, *commandPool);
 
     VkBufferCopy copyRegion{};
     copyRegion.size = size;
     vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
-    Commands::endSingleTimeCommands(*device, *graphicsQueue,*commandPool, commandBuffer);
+    Commands::endSingleTimeCommands(*pDevice, *graphicsQueue,*commandPool, commandBuffer);
 }
 
 void Buffers::createIndexBuffer() {
@@ -101,9 +101,9 @@ void Buffers::createIndexBuffer() {
     createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
     // copy data form cpu to GPU
     void* data;
-    vkMapMemory(*device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    vkMapMemory(*pDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
     memcpy(data, indices.data(), (size_t)bufferSize);
-    vkUnmapMemory(*device, stagingBufferMemory);
+    vkUnmapMemory(*pDevice, stagingBufferMemory);
     // GOAL - move GPU data to a "better" memory block (also GPU).
     // PROPERTY: target is memory on GPU (DEVICE_LOCAL_BIT)
     // USE: it will recieve data (TRANSFER_DST_BIT) and contained indices (INDEX_BUFFER_BIT)
@@ -111,8 +111,8 @@ void Buffers::createIndexBuffer() {
     // copy data on GPU
     copyBuffer( stagingBuffer, indexBuffer, bufferSize);
     // remove old host-visible data copy and references.
-    vkDestroyBuffer(*device, stagingBuffer, nullptr);
-    vkFreeMemory(*device, stagingBufferMemory, nullptr);
+    vkDestroyBuffer(*pDevice, stagingBuffer, nullptr);
+    vkFreeMemory(*pDevice, stagingBufferMemory, nullptr);
     // Comment: Having staging buffer being SRC and final buffer being DST sounds right. But tbh it does not make 100% sense, as both targets are on GPU.
 }
 
@@ -124,16 +124,16 @@ void Buffers::createVertexBuffer() {
     createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 
     void* data;
-    vkMapMemory(*device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    vkMapMemory(*pDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
     memcpy(data, vertices.data(), (size_t)bufferSize);
-    vkUnmapMemory(*device, stagingBufferMemory);
+    vkUnmapMemory(*pDevice, stagingBufferMemory);
 
     createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
 
     copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
 
-    vkDestroyBuffer(*device, stagingBuffer, nullptr);
-    vkFreeMemory(*device, stagingBufferMemory, nullptr);
+    vkDestroyBuffer(*pDevice, stagingBuffer, nullptr);
+    vkFreeMemory(*pDevice, stagingBufferMemory, nullptr);
 }
 
 void Buffers::createBuffer_uniformMVP() {
@@ -154,7 +154,7 @@ void Buffers::createBuffer_uniformMVP() {
             bufferMemory_uniformMVP[i]
         );
 
-        vkMapMemory(*device, bufferMemory_uniformMVP[i], 0, bufferSize, 0, &bufferMapped_uniformMVP[i]);
+        vkMapMemory(*pDevice, bufferMemory_uniformMVP[i], 0, bufferSize, 0, &bufferMapped_uniformMVP[i]);
         // unmap memory ?
     }
 }
@@ -172,7 +172,7 @@ void Buffers::createBuffer_storageTransformations() {
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
             buffer_storageTransformations[i], bufferMemory_storageTransformations[i]);
 
-        vkMapMemory(*device, bufferMemory_storageTransformations[i], 0, bufferSize, 0, &bufferMapped_storageTransformtions[i]);
+        vkMapMemory(*pDevice, bufferMemory_storageTransformations[i], 0, bufferSize, 0, &bufferMapped_storageTransformtions[i]);
     }
 }
 
@@ -193,10 +193,10 @@ void Buffers::createBuffer_storageParticles() {
     for (auto& particle : particles) {
         particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 0.5f * 0.5f *(rndDist(rndEngine) + 1.0f));
         particle.position = glm::vec3(rndDist(rndEngine), rndDist(rndEngine), 0.2f + 0.2f*rndDist(rndEngine));
-        particle.velocity = glm::vec3(0.0f, 0.0f,0.0f);
+        particle.velocity = glm::ballRand(0.3f);
         particle.acceleration = glm::vec3(0.0f, 0.0f, 0.0f);
         particle.mass = glm::float32(1.0);
-        particle.damping = glm::float32(id);
+        particle.damping = glm::float32(0.0);
 
         id += 0.1;
     }
@@ -206,10 +206,10 @@ void Buffers::createBuffer_storageParticles() {
             buffer_storageParticles[i], bufferMemory_storageParticles[i]);
 
         // get a pointer bufferMapped_ to a memory block of type bufferMemory_ and of size bufferSize
-        vkMapMemory(*device, bufferMemory_storageParticles[i], 0, bufferSize, 0, &bufferMapped_storageParticles[i]);
+        vkMapMemory(*pDevice, bufferMemory_storageParticles[i], 0, bufferSize, 0, &bufferMapped_storageParticles[i]);
         // copy particle data of size bufferSize to storage buffer bufferMapped_.
         memcpy(bufferMapped_storageParticles[i], particles.data(), (size_t)bufferSize);
-        vkUnmapMemory(*device, bufferMemory_storageParticles[i]);
+        vkUnmapMemory(*pDevice, bufferMemory_storageParticles[i]);
     }
 }
 //void Buffers::createShaderStorageBuffers() {
@@ -260,20 +260,20 @@ void Buffers::clearBuffers1(){
     }
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        vkDestroyBuffer(*device, buffer_uniformMVP[i], nullptr);
-        vkDestroyBuffer(*device, buffer_storageTransformations[i], nullptr);
-        vkDestroyBuffer(*device, buffer_storageParticles[i], nullptr);
+        vkDestroyBuffer(*pDevice, buffer_uniformMVP[i], nullptr);
+        vkDestroyBuffer(*pDevice, buffer_storageTransformations[i], nullptr);
+        vkDestroyBuffer(*pDevice, buffer_storageParticles[i], nullptr);
 
-        vkFreeMemory(   *device, bufferMemory_uniformMVP[i], nullptr);
-        vkFreeMemory(   *device, bufferMemory_storageTransformations[i], nullptr);
-        vkFreeMemory(   *device, bufferMemory_storageParticles[i], nullptr);
+        vkFreeMemory(   *pDevice, bufferMemory_uniformMVP[i], nullptr);
+        vkFreeMemory(   *pDevice, bufferMemory_storageTransformations[i], nullptr);
+        vkFreeMemory(   *pDevice, bufferMemory_storageParticles[i], nullptr);
     }
 }
 
 void Buffers::clearBuffers2(){
-    vkDestroyBuffer(*device, indexBuffer, nullptr);
-    vkDestroyBuffer(*device, vertexBuffer, nullptr);
-    vkFreeMemory(   *device, indexBufferMemory, nullptr);
-    vkFreeMemory(   *device, vertexBufferMemory, nullptr);
+    vkDestroyBuffer(*pDevice, indexBuffer, nullptr);
+    vkDestroyBuffer(*pDevice, vertexBuffer, nullptr);
+    vkFreeMemory(   *pDevice, indexBufferMemory, nullptr);
+    vkFreeMemory(   *pDevice, vertexBufferMemory, nullptr);
 }
 

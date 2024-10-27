@@ -8,14 +8,15 @@
 #include <chrono>
 #include <glm/ext/scalar_constants.hpp>
 #include <random>  
-
+#include "MathsGL.h"
 
 Engine::Engine() :
     glfw_s(),
     dvc(&instance, &surface, &device),
     swp(&surface, &device, &dvc.physicalDevice, &dvc.msaaSamples),
     sync(&device),
-    rndr(&device, &dvc.msaaSamples),
+    gfx(&device, &dvc.msaaSamples),
+    dscr(&device),
     cmd(&device, &dvc.physicalDevice, &surface),
     bfr(&device, &dvc.physicalDevice, &cmd.commandPool, &graphicsQueue) 
 {
@@ -25,6 +26,10 @@ Engine::Engine() :
 
 void Engine::run() 
 {
+    std::vector<glm::vec3> points = { {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.5f, 1.5f, 1.5f} };
+    //glm::vec3 v(2.f, 2.f, 2.f);
+    MathGL::calculateSquaredDistanceUpperTriangleMatrix(points);
+        
     //std::cout << VkApplicationInfo::apiVersion() << std::endl;
     constexpr float pi = glm::pi<float>();
     std::vector<std::unique_ptr<geometric_shape>> scene;
@@ -43,19 +48,22 @@ void Engine::run()
     vkCmdSetPrimitiveTopologyEXT = (PFN_vkCmdSetPrimitiveTopologyEXT)vkGetDeviceProcAddr(device, "vkCmdSetPrimitiveTopologyEXT");
     swp.createSwapChain(glfw_s.window);
     swp.createImageViews();
-    rndr.createRenderPass(swp.swapChainImageFormat, dvc.findDepthFormat()); // renderPass
+    swp.createRenderPass(dvc.findDepthFormat()); // renderPass
 
-    rndr.createDescriptorSetLayout_uniformMVP();
-    rndr.createDescriptorSetLayout_multi_MPV_TS_TRN();                                       // descriptorSetLayout_multi_MPV_TS_TRN
-    rndr.createDescriptorSetLayout_storageParticles();
+    dscr.createDSL_uniformMVP();
+    dscr.createDSL_multi_MPV_TS_TRN();
+    dscr.createDSL_storageParticles();
+    //rndr.createDescriptorSetLayout_uniformMVP();
+    //rndr.createDescriptorSetLayout_multi_MPV_TS_TRN();                                       // descriptorSetLayout_multi_MPV_TS_TRN
+    //rndr.createDescriptorSetLayout_storageParticles();
 
-    rndr.createGraphicsPipeline_storageVertices();                           // pipelineLayout, graphicsPipeline
-    rndr.createGraphicsPipeline_storageParticles();                          // pipelineLayout, graphicsPipeline
+    gfx.createGraphicsPipeline_storageVertices(&dscr.descriptorSetLayout_multi_MPV_TS_TRN, &swp.renderPass);                           // pipelineLayout, graphicsPipeline
+    gfx.createGraphicsPipeline_storageParticles(&dscr.descriptorSetLayout_uniformMVP, &swp.renderPass);                          // pipelineLayout, graphicsPipeline
 
     cmd.createCommandPool();                                                // commandPool
     swp.createColorResources();                                             // colorImageView
     swp.createDepthResources(dvc.findDepthFormat());                        // depthImageView
-    swp.createFramebuffers(rndr.renderPass);                                // swapChainFramebuffers
+    swp.createFramebuffers();                                // swapChainFramebuffers
     swp.createTextureImage(cmd, graphicsQueue);                             //
     swp.createTextureImageView();
     swp.createTextureSampler();                                             //
@@ -69,15 +77,21 @@ void Engine::run()
     bfr.createBuffer_storageTransformations();
     bfr.createBuffer_storageParticles();                                    // will act as vertex buffer for particles
 
-    swp.createDescriptorPool();                                             //descriptorPool
-    swp.createDescriptorSets_multi_MPV_TS_TRN(
+    dscr.createDescriptorPool();
+    dscr.createDS_multi_MPV_TS_TRN(
+        bfr.buffer_uniformMVP,  bfr.buffer_storageTransformations,
+        swp.textureImageView,   swp.textureSampler);
+    dscr.createDS_uniformMVP(bfr.buffer_uniformMVP);
+    //dscr.createDS_storageParticles(bfr.buffer_storageParticles)       // does not work. not needed.
+    //swp.createDescriptorPool();                                             //descriptorPool
+    /*swp.createDescriptorSets_multi_MPV_TS_TRN(
         rndr.descriptorSetLayout_multi_MPV_TS_TRN, 
         bfr.buffer_uniformMVP,
         bfr.buffer_storageTransformations);
     swp.createDescriptorSets_uniformMVP(
         &rndr.descriptorSetLayout_uniformMVP,
-        bfr.buffer_uniformMVP);
-    //swp.createDescriptorSets_storageParticles(
+        bfr.buffer_uniformMVP);*/
+    //swp.createDS_storageParticles(
     //    &rndr.descriptorSetLayout_storageParticles,
     //    bfr.buffer_storageParticles);
     cmd.createCommandBuffers();
@@ -140,18 +154,6 @@ void Engine::createInstance()
 }
 
 void Engine::updateBufferMapped_storageParticles() {
-   /* static auto startTime = std::chrono::high_resolution_clock::now();
-
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();*/
-
-    /*float scaleFactor = 3.0f*std::cos(5.0f * time);
-
-    glm::mat4 transform = glm::scale(glm::mat4(1.0f), glm::vec3(scaleFactor, scaleFactor, scaleFactor));
-
-    point3D* particles = reinterpret_cast<point3D*>(buffer);
-
-    std::cout <<" "<< scaleFactor<<" " << particles[8].damping << std::endl;*/
 
     if (1 == 0) {
 
@@ -189,7 +191,8 @@ void Engine::updateBufferMapped_storageParticles() {
     glm::mat4 transform = glm::scale(glm::mat4(1.0f), glm::vec3(scaleFactor, scaleFactor, scaleFactor));
 
     for (size_t i = 0; i < PARTICLE_COUNT; i++) {
-        particles[i].position = (transform * glm::vec4(particles[i].position, 1.0f)).xyz;
+        //particles[i].position = (transform * glm::vec4(particles[i].position, 1.0f)).xyz;
+        particles[i].position += particles[i].velocity * time2;
     }
 }
 
@@ -200,7 +203,7 @@ void Engine::updateUniformBuffer(uint32_t currentImage) {
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
     StructMVP ubo{};
-    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.model = glm::rotate(glm::mat4(1.0f), 0.5f * time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), swp.swapChainExtent.width / (float)swp.swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
@@ -246,7 +249,7 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
     
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = rndr.renderPass;
+    renderPassInfo.renderPass = swp.renderPass;
     renderPassInfo.framebuffer = swp.swapChainFramebuffers[imageIndex];
     renderPassInfo.renderArea.offset = { 0, 0 };
     renderPassInfo.renderArea.extent = swp.swapChainExtent;
@@ -276,26 +279,26 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
 
     VkDeviceSize offsets[] = { 0 };
 
-     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rndr.graphicsPipeline_particles);
+     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.graphicsPipeline_particles);
 
     VkBuffer vertexBuffers[] = { bfr.buffer_storageParticles[currentFrame]};
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rndr.pipelineLayout_particles, 0, 1, &swp.descriptorSets_uniformMVP[currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.pipelineLayout_particles, 0, 1, &dscr.descriptorSets_uniformMVP[currentFrame], 0, nullptr);
 
-    vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+    vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_POINT_LIST);
     vkCmdSetLineWidth(commandBuffer, 3.0f);
 
     vkCmdDraw(commandBuffer, static_cast<uint32_t>(PARTICLE_COUNT), 1, 0, 0);
 
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rndr.graphicsPipeline);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.graphicsPipeline);
 
     VkBuffer vertexBuffers2[] = { bfr.vertexBuffer };
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers2, offsets);
 
     vkCmdBindIndexBuffer(commandBuffer, bfr.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rndr.pipelineLayout, 0, 1, &swp.descriptorSets_multi_MPV_TS_TRN[currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.pipelineLayout, 0, 1, &dscr.descriptorSets_multi_MPV_TS_TRN[currentFrame], 0, nullptr);
 
     vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     //vkCmdSetLineWidth(commandBuffer, 10.0f);
@@ -347,7 +350,7 @@ void Engine::recreateSwapChain() {
     swp.createImageViews();
     swp.createColorResources();// colorImageView
     swp.createDepthResources(dvc.findDepthFormat());   // depthImageView
-    swp.createFramebuffers(rndr.renderPass);
+    swp.createFramebuffers();
 }
 
 void Engine::drawFrame() {
@@ -447,9 +450,12 @@ void Engine::drawFrame() {
 void Engine::cleanup() {
     std::cout << std::string(40, '-') <<" CLEANUP " << std::string(40, '-') << std::endl;
     swp.cleanupSwapChain();
-    rndr.cleanup();
+    gfx.cleanup();
+    swp.cleanupRenderPass();
     bfr.clearBuffers1();
+    dscr.cleanupDPool();
     swp.cleanupRest();
+    dscr.cleanupDSL();
     bfr.clearBuffers2();
     sync.cleanup();
     vkDestroyCommandPool(device, cmd.commandPool, nullptr);
