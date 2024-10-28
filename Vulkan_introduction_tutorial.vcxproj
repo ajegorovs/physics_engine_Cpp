@@ -165,6 +165,7 @@
     <ClInclude Include="MathsGL.h" />
     <ClInclude Include="misc.h" />
     <ClInclude Include="graphics.h" />
+    <ClInclude Include="physics.h" />
     <ClInclude Include="shapes.h" />
     <ClInclude Include="structs.h" />
     <ClInclude Include="swapchain.h" />

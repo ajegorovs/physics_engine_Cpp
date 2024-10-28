@@ -1,12 +1,13 @@
 #include "buffers.h"
 #include "device2.h"
 #include "commands.h"
+#include "physics.h"
 #include <iostream>
 #include <cstdint>
 #include <algorithm>
 #include <random>       // default_random_engine, uniform_real_distribution
 #include <cmath> 
-#include <glm/glm.hpp>
+
 
 Buffers::Buffers(){}
 
@@ -159,6 +160,28 @@ void Buffers::createBuffer_uniformMVP() {
     }
 }
 
+void Buffers::createBuffer_uniformDeltaTime()
+{
+    VkDeviceSize bufferSize = sizeof(StructDeltaTime);
+
+    buffer_uniformDeltaTime.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_uniformDeltaTime.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMapped_uniformDeltaTime.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBuffer(
+            bufferSize,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            buffer_uniformDeltaTime[i],
+            bufferMemory_uniformDeltaTime[i]
+        );
+
+        vkMapMemory(*pDevice, bufferMemory_uniformDeltaTime[i], 0, bufferSize, 0, &bufferMapped_uniformDeltaTime[i]);
+        // unmap memory ?
+    }
+}
+
 void Buffers::createBuffer_storageTransformations() {
     // Custom storage buffer. but same logic of host-visible memory.
     VkDeviceSize bufferSize = sizeof(StructObjectTransformations);
@@ -176,7 +199,7 @@ void Buffers::createBuffer_storageTransformations() {
     }
 }
 
-void Buffers::createBuffer_storageParticles() {
+void Buffers::createBuffer_storageParticles(glm::vec3 mass_center_pos, glm::float32 bigMass, glm::float32 grav_const, glm::vec3 reference_axis) {
     // Custom storage buffer. but same logic of host-visible memory.
     VkDeviceSize bufferSize = sizeof(point3D) * PARTICLE_COUNT;
 
@@ -185,15 +208,16 @@ void Buffers::createBuffer_storageParticles() {
     bufferMapped_storageParticles.resize(MAX_FRAMES_IN_FLIGHT);
 
     std::default_random_engine rndEngine((unsigned)time(nullptr));
-    std::uniform_real_distribution<float> rndDist(-1.0f, 1.0f);
+    std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
 
     // init
     float id = 0;
     std::vector<point3D> particles(PARTICLE_COUNT);
     for (auto& particle : particles) {
-        particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 0.5f * 0.5f *(rndDist(rndEngine) + 1.0f));
-        particle.position = glm::vec3(rndDist(rndEngine), rndDist(rndEngine), 0.2f + 0.2f*rndDist(rndEngine));
-        particle.velocity = glm::ballRand(0.3f);
+        particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 0.5f * rndDist(rndEngine) );
+        particle.position = mass_center_pos + glm::vec3(0.0f, 2.0f, 0.0f) + glm::ballRand((rndDist(rndEngine)*0.03f));// glm::vec3(glm::circularRand(0.5f), 0.0f); //glm::vec3(glm::diskRand(0.1f), 0.2f); // ;//  //glm::vec3(0.0f * rndDist(rndEngine), 0.0f * rndDist(rndEngine), 0.0f * 0.2f*rndDist(rndEngine));
+
+        particle.velocity = Physics::set_circular_orbit_velocity(mass_center_pos, bigMass, particle.position, grav_const, reference_axis);// glm::ballRand(1.0f);// 
         particle.acceleration = glm::vec3(0.0f, 0.0f, 0.0f);
         particle.mass = glm::float32(1.0);
         particle.damping = glm::float32(0.0);
@@ -263,10 +287,12 @@ void Buffers::clearBuffers1(){
         vkDestroyBuffer(*pDevice, buffer_uniformMVP[i], nullptr);
         vkDestroyBuffer(*pDevice, buffer_storageTransformations[i], nullptr);
         vkDestroyBuffer(*pDevice, buffer_storageParticles[i], nullptr);
+        vkDestroyBuffer(*pDevice, buffer_uniformDeltaTime[i], nullptr);
 
         vkFreeMemory(   *pDevice, bufferMemory_uniformMVP[i], nullptr);
         vkFreeMemory(   *pDevice, bufferMemory_storageTransformations[i], nullptr);
         vkFreeMemory(   *pDevice, bufferMemory_storageParticles[i], nullptr);
+        vkFreeMemory(   *pDevice, bufferMemory_uniformDeltaTime[i], nullptr);
     }
 }
 

@@ -1,9 +1,25 @@
 #include "glfw_support.h"
 #include "config.h"
+#include <string>
+#include <sstream>
+#include <iomanip>
 
 GLFW_support::GLFW_support()
 {
     //std::cout <<"GLFW_support: window <-" << window;
+}
+
+void GLFW_support::setWindowTitleWithFPS(float lastFrameTime) {
+    if (lastFrameTime > 0.0f) {  // Prevent division by zero
+        float fps = 1.0f / lastFrameTime;
+
+        // Format the window title with FPS value
+        std::ostringstream title;
+        title << "FPS: " << std::fixed << std::setprecision(2) << fps;
+
+        // Set the formatted title
+        glfwSetWindowTitle(window, title.str().c_str());
+    }
 }
 
 void GLFW_support::framebufferResizeCallback(GLFWwindow* window, int width, int height) {

@@ -1,6 +1,7 @@
 #pragma once
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
 #include "config.h"
 #include "device2.h"
 #include "debug2.h"
@@ -24,6 +25,14 @@ public:
 	VkQueue computeQueue;
 	void createInstance();
 	void run();
+	float lastFrameTime = 0.0f;
+	double lastTime = 0.0f;
+	glm::vec3 center;
+	glm::vec3 center2;
+	glm::float32 center_mass;
+	glm::float32 center_mass2;
+	glm::float32 grav_const;
+	glm::vec3 reference_axis;
 	
 private:
 	GLFW_support glfw_s;
@@ -45,7 +54,7 @@ private:
 	void updateUniformBuffer(uint32_t currentImage);
 	//void updateParticleUniformBuffer(uint32_t currentImage);
 	void updateStorageBuffer(uint32_t currentImage);
-	void updateBufferMapped_storageParticles();
+	void updateBufferMapped_storageParticles(uint32_t currentImage);
 	//void updateShaderStorageBuffer(uint32_t currentImage);
 	void drawFrame();
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);

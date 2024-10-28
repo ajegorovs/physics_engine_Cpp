@@ -1,5 +1,15 @@
 #version 450
 
+struct point3D
+{
+    vec4 color;
+    vec3 position;
+    vec3 velocity;
+    vec3 acceleration;
+    float mass;
+    float damping;
+};
+
 layout(binding = 0) uniform UniformBufferObject {
     mat4 model;
     mat4 view;
@@ -16,8 +26,10 @@ layout(location = 5) in float damping;
 layout(location = 0) out vec4 fragColor;
 
 void main() {
+
+
     gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 1.0);
     fragColor = inColor;
-	gl_PointSize = 10.0;
+	gl_PointSize = 5.0;
 
 }
