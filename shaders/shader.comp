@@ -29,25 +29,20 @@ void main()
 	
     Particle particleIn = particlesIn[index];
     
-	//if (index == 1){
-	//	particlesOut[0].color = vec4(1.,1.,1.,1.);
-	//	particlesOut[0].position = vec3(1.,1.,1.);
-	//}
 	
-	//particlesOut[index].position = particleIn.position + particleIn.velocity * ubo.deltaTime;
-    //particlesOut[index].velocity = particleIn.velocity;
+	particlesOut[index].position = particleIn.position + particleIn.velocity * ubo.deltaTime;
+    particlesOut[index].velocity = particleIn.velocity;
 	
-	//particlesOut[index].position *= 0.0;
 	
 
-    //if ((particlesOut[index].position.x <= -1.0) || (particlesOut[index].position.x >= 1.0)) {
-    //    particlesOut[index].velocity.x = -particlesOut[index].velocity.x;
-    //}
-    //if ((particlesOut[index].position.y <= -1.0) || (particlesOut[index].position.y >= 1.0)) {
-    //    particlesOut[index].velocity.y = -particlesOut[index].velocity.y;
-    //}
-	//if ((particlesOut[index].position.z <= -1.0) || (particlesOut[index].position.z >= 1.0)) {
-    //    particlesOut[index].velocity.z = -particlesOut[index].velocity.z;
-    //}
+    if ((particlesOut[index].position.x <= -1.0) || (particlesOut[index].position.x >= 1.0)) {
+        particlesOut[index].velocity.x = -particlesOut[index].velocity.x;
+    }
+    if ((particlesOut[index].position.y <= -1.0) || (particlesOut[index].position.y >= 1.0)) {
+        particlesOut[index].velocity.y = -particlesOut[index].velocity.y;
+    }
+	if ((particlesOut[index].position.z <= -1.0) || (particlesOut[index].position.z >= 1.0)) {
+        particlesOut[index].velocity.z = -particlesOut[index].velocity.z;
+    }
 
 }

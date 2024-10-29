@@ -23,7 +23,7 @@ const bool enableValidationLayers = true;
 
 const std::vector<const char*> filterValidationErrors = { 
 	"VUID-vkCmdSetPrimitiveTopology-None-08971" ,
-	"VUID-VkImageViewCreateInfo-usage-02275",
-	"VUID-VkSwapchainCreateInfoKHR-imageFormat-01778"
+	//"VUID-VkImageViewCreateInfo-usage-02275",
+	//"VUID-VkSwapchainCreateInfoKHR-imageFormat-01778"
 };
 

@@ -48,12 +48,12 @@ public:
 			float x = r * cos(theta);
 			float y = r * sin(theta);
 			float z = 0.1f;
-			particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 1.0f);
-			particle.position = glm::vec3(0.f,0.f,0.f)+ glm::ballRand(0.05f);//glm::vec3(x-0.5f, y, z);
-			particle.velocity = glm::vec3(x - 0.5f, y, z);// glm::ballRand(0.1f);
-			particle.acceleration = glm::vec3(x - 0.5f, y, z);// glm::ballRand(1.0f);// glm::vec3(0.0f, 0.0f, 0.0f);
-			particle.mass = glm::float32(1.0);
-			particle.damping = glm::float32(0.0);
+			particle.color			= glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 1.0f);
+			particle.position		= glm::vec3(x - 0.5f, y, z);//+ glm::ballRand(0.05f);//
+			particle.velocity		= glm::ballRand(0.1f);
+			particle.acceleration	= glm::vec3(0.0f, 0.0f, 0.0f);		// glm::ballRand(1.0f);// 
+			particle.mass			= glm::float32(1.0f);
+			particle.damping		= glm::float32(0.0f);
 		}
 
 		return particles;

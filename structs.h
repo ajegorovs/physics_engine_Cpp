@@ -10,6 +10,7 @@
 #include <cmath>
 #include <vector>
 
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_ENABLE_EXPERIMENTAL
@@ -23,23 +24,23 @@
 
 struct StructDeltaTime
 {
-    glm::float32 deltaTime;
+    float deltaTime;
 };
 
-
-struct point3D
-{
-    glm::vec4 color;
-    glm::vec3 position;
-    glm::vec3 velocity;
-    glm::vec3 acceleration;
-    glm::float32 mass;
-    glm::float32 damping;
-
+// #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES should deal with glm::X
+struct alignas(16) point3D {
+    alignas(16) glm::vec4 color;         // Offset: 0, Size: 16
+    alignas(16) glm::vec3 position;      // Offset: 16, Size: 12 + 4 padding
+    alignas(16) glm::vec3 velocity;      // Offset: 32, Size: 12 + 4 padding
+    alignas(16) glm::vec3 acceleration;  // Offset: 48, Size: 12 + 4 padding
+    alignas(4) glm::float32 mass;               // Offset: 64, Size: 4
+    alignas(4) glm::float32 damping;            // Offset: 68, Size: 4
+    // Add 4 bytes of padding to make the structure size a multiple of 16 bytes
+    // 
     // these are used for vertex buffer.
     static VkVertexInputBindingDescription getBindingDescription() {
         VkVertexInputBindingDescription bindingDescription{};
-        bindingDescription.binding = 0; // wrong
+        bindingDescription.binding = 0; 
         bindingDescription.stride = sizeof(point3D);
         bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
@@ -90,11 +91,11 @@ struct SwapChainSupportDetails {
 };
 
 struct Vertex {
-    glm::vec3 pos;
-    glm::vec3 color;
-    glm::vec2 texCoord;
-    glm::float32 hasTex;
-    glm::float32 objID;
+    alignas(16) glm::vec3 pos;
+    alignas(16) glm::vec3 color;
+    alignas(8) glm::vec2 texCoord;
+    alignas(4) glm::float32 hasTex;
+    alignas(4) glm::float32 objID;
 
     static VkVertexInputBindingDescription getBindingDescription() {
         VkVertexInputBindingDescription bindingDescription{};

@@ -41,8 +41,8 @@ void Engine::run()
     //std::cout << VkApplicationInfo::apiVersion() << std::endl;
     constexpr float pi = glm::pi<float>();
     std::vector<std::unique_ptr<geometric_shape>> scene;
-    scene.push_back(std::make_unique<Plane>(glm::vec3(3, 3, 0)      , glm::vec3(0, 0, 0)    , glm::vec2(0, 0)));
-    //scene.push_back(std::make_unique<Prism>(glm::vec3(1, 0.5, 0.5)  , glm::vec3(0, 0, 1.5)  , glm::vec2(glm::radians(45.), glm::radians(30.))));
+    //scene.push_back(std::make_unique<Plane>(glm::vec3(3, 3, 0)      , glm::vec3(0, 0, -10.5f)    , glm::vec2(0, 0)));
+    scene.push_back(std::make_unique<Prism>(glm::vec3(1, 0.5, 0.5)  , glm::vec3(0, 0, 1.5)  , glm::vec2(glm::radians(45.), glm::radians(30.))));
     //scene.push_back(std::make_unique<Cube>( 0.5                     , glm::vec3(2, 1, 0.5) , glm::vec2(0, 0)));
 
     // ===== UI ===== //
@@ -366,19 +366,19 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
     //vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers2, offsets);
 
     //vkCmdDraw(commandBuffer, PARTICLE_COUNT, 1, 0, 0);
-    ////// draw polygon geom
-    //vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.graphicsPipeline);
+    // draw polygon geom
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.graphicsPipeline);
 
-    //VkBuffer vertexBuffers3[] = { bfr.vertexBuffer };
-    //vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers3, offsets);
+    VkBuffer vertexBuffers3[] = { bfr.vertexBuffer };
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers3, offsets);
 
-    //vkCmdBindIndexBuffer(commandBuffer, bfr.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdBindIndexBuffer(commandBuffer, bfr.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-    //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.pipelineLayout, 0, 1, &dscr.descriptorSets_multi_MPV_TS_TRN[currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.pipelineLayout, 0, 1, &dscr.descriptorSets_multi_MPV_TS_TRN[currentFrame], 0, nullptr);
 
-    //vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    //vkCmdSetLineWidth(commandBuffer, 2.0f);
-    //vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(bfr.indices.size()), 1, 0, 0, 0);
+    vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    vkCmdSetLineWidth(commandBuffer, 2.0f);
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(bfr.indices.size()), 1, 0, 0, 0);
 
 
     vkCmdEndRenderPass(commandBuffer);
