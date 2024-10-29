@@ -162,12 +162,12 @@ void Buffers::createBuffer_storageParticles(glm::vec3 mass_center_pos, glm::floa
     bufferMemory_storageParticles.resize(MAX_FRAMES_IN_FLIGHT);
     bufferMapped_storageParticles.resize(MAX_FRAMES_IN_FLIGHT);
 
-    std::default_random_engine rndEngine((unsigned)time(nullptr));
-    std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
+    //std::default_random_engine rndEngine((unsigned)time(nullptr));
+    //std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
 
     // init
-    std::vector<point3D> particles = Physics::generateParticles(mass_center_pos, bigMass, grav_const, reference_axis);
-    
+    //std::vector<point3D> particles = Physics::generateParticles(mass_center_pos, bigMass, grav_const, reference_axis);
+    std::vector<point3D> particles = Physics::generateParticles2();
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         createBuffer(bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
@@ -183,8 +183,8 @@ void Buffers::createBuffer_storageParticles(glm::vec3 mass_center_pos, glm::floa
 
 void Buffers::createBuffer_storageComputeParticles(glm::vec3 mass_center_pos, glm::float32 bigMass, glm::float32 grav_const, glm::vec3 reference_axis)
 {
-    std::vector<point3D> particles = Physics::generateParticles(mass_center_pos, bigMass, grav_const, reference_axis);
-
+    //std::vector<point3D> particles = Physics::generateParticles(mass_center_pos, bigMass, grav_const, reference_axis);
+    std::vector<point3D> particles = Physics::generateParticles2();
     VkDeviceSize bufferSize = sizeof(point3D) * PARTICLE_COUNT;
 
     VkBuffer stagingBuffer;
@@ -269,13 +269,13 @@ void Buffers::clearBuffers1(){
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroyBuffer(*pDevice, buffer_uniformMVP[i], nullptr);
         vkDestroyBuffer(*pDevice, buffer_storageTransformations[i], nullptr);
-        vkDestroyBuffer(*pDevice, buffer_storageParticles[i], nullptr);
+        //vkDestroyBuffer(*pDevice, buffer_storageParticles[i], nullptr);
         vkDestroyBuffer(*pDevice, buffer_storageComputeParticles[i], nullptr);
         vkDestroyBuffer(*pDevice, buffer_uniformDeltaTime[i], nullptr);
 
         vkFreeMemory(   *pDevice, bufferMemory_uniformMVP[i], nullptr);
         vkFreeMemory(   *pDevice, bufferMemory_storageTransformations[i], nullptr);
-        vkFreeMemory(   *pDevice, bufferMemory_storageParticles[i], nullptr);
+        //vkFreeMemory(   *pDevice, bufferMemory_storageParticles[i], nullptr);
         vkFreeMemory(   *pDevice, bufferMemory_storageComputeParticles[i], nullptr);
         vkFreeMemory(   *pDevice, bufferMemory_uniformDeltaTime[i], nullptr);
     }

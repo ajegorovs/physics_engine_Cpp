@@ -4,6 +4,7 @@
 #include "config.h"
 #include "structs.h"
 #include <vector>
+#include <cstdint>
 
 // Logic: Device2 keeps strictiyl device related stuff. it uses pointers for higher stuff.
 class Device2 {
@@ -34,7 +35,7 @@ public:
 	static uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties);
 	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 	void pickPhysicalDevice();
-	void createLogicalDevice(const std::vector<const char*> validationLayers, VkQueue* pGraphicsQueue, VkQueue* pPresentQueue);
+	void createLogicalDevice(const std::vector<const char*> validationLayers, VkQueue* pGraphicsQueue, VkQueue* pPresentQueue, VkQueue* pComputeQueue);
 	VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 	VkFormat findDepthFormat();
 

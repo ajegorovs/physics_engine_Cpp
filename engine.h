@@ -57,6 +57,7 @@ private:
 	//void updateParticleUniformBuffer(uint32_t currentImage);
 	void updateStorageBuffer(uint32_t currentImage);
 	void updateBufferMapped_storageParticles(uint32_t currentImage);
+	void updateBufferMapped_uniformDeltaTime(uint32_t currentImage);
 	//void updateShaderStorageBuffer(uint32_t currentImage);
 	void drawFrame();
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);

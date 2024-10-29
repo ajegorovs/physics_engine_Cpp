@@ -28,7 +28,7 @@ Engine::Engine() :
 
 void Engine::run() 
 {
-    std::vector<glm::vec3> points = { {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.5f, 1.5f, 1.5f} };
+    //std::vector<glm::vec3> points = { {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.5f, 1.5f, 1.5f} };
     //glm::vec3 v(2.f, 2.f, 2.f);
     //MathGL::calculateSquaredDistanceUpperTriangleMatrix(points);
     center = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -41,9 +41,9 @@ void Engine::run()
     //std::cout << VkApplicationInfo::apiVersion() << std::endl;
     constexpr float pi = glm::pi<float>();
     std::vector<std::unique_ptr<geometric_shape>> scene;
-    //scene.push_back(std::make_unique<Plane>(glm::vec3(3, 3, 0)      , glm::vec3(0, 0, 0)    , glm::vec2(0, 0)));
-    scene.push_back(std::make_unique<Prism>(glm::vec3(1, 0.5, 0.5)  , glm::vec3(0, 0, 1.5)  , glm::vec2(glm::radians(45.), glm::radians(30.))));
-    scene.push_back(std::make_unique<Cube>( 0.5                     , glm::vec3(2, 1, 0.5) , glm::vec2(0, 0)));
+    scene.push_back(std::make_unique<Plane>(glm::vec3(3, 3, 0)      , glm::vec3(0, 0, 0)    , glm::vec2(0, 0)));
+    //scene.push_back(std::make_unique<Prism>(glm::vec3(1, 0.5, 0.5)  , glm::vec3(0, 0, 1.5)  , glm::vec2(glm::radians(45.), glm::radians(30.))));
+    //scene.push_back(std::make_unique<Cube>( 0.5                     , glm::vec3(2, 1, 0.5) , glm::vec2(0, 0)));
 
     // ===== UI ===== //
     glfw_s.initWindow();                                                    // window
@@ -52,7 +52,7 @@ void Engine::run()
     dbg.setupDebugMessenger(instance, device);
     glfw_s.createSurface(instance, &surface);
 	dvc.pickPhysicalDevice();                                               // physicalDevice
-    dvc.createLogicalDevice(validationLayers, &graphicsQueue, &presentQueue); // device, graphicsQueue and presentQueue
+    dvc.createLogicalDevice(validationLayers, &graphicsQueue, &presentQueue, &computeQueue); // device, graphicsQueue and presentQueue
     vkCmdSetPrimitiveTopologyEXT = (PFN_vkCmdSetPrimitiveTopologyEXT)vkGetDeviceProcAddr(device, "vkCmdSetPrimitiveTopologyEXT");
     swp.createSwapChain(glfw_s.window);
     swp.createImageViews();
@@ -81,8 +81,8 @@ void Engine::run()
 
     bfr.createBuffer_uniformMVP();
     bfr.createBuffer_storageTransformations();
-    bfr.createBuffer_storageParticles(          center, 0.2f*center_mass + 0.8f*center_mass2, grav_const, reference_axis);                                    // will act as vertex buffer for particles
-    bfr.createBuffer_storageComputeParticles(   center, 0.2f*center_mass + 0.8f*center_mass2, grav_const, reference_axis);                                    // will act as vertex buffer for particles
+    bfr.createBuffer_storageParticles(          center, center_mass, grav_const, reference_axis);                                    // will act as vertex buffer for particles
+    bfr.createBuffer_storageComputeParticles(   center, center_mass, grav_const, reference_axis);                                    // will act as vertex buffer for particles
     bfr.createBuffer_uniformDeltaTime();
 
     dscr.createDescriptorPool();
@@ -213,6 +213,13 @@ void Engine::createInstance()
 //    }
 //}
 
+void Engine::updateBufferMapped_uniformDeltaTime(uint32_t currentImage) {
+    StructDeltaTime ubo{};
+    ubo.deltaTime = lastFrameTime * 12.0f;
+
+    memcpy(bfr.bufferMapped_uniformDeltaTime[currentImage], &ubo, sizeof(ubo));
+}
+
 void Engine::updateBufferMapped_storageParticles(uint32_t currentFrame) {
 
 
@@ -278,14 +285,6 @@ void Engine::updateUniformBuffer(uint32_t currentImage) {
     memcpy(bfr.bufferMapped_uniformMVP[currentImage], &ubo, sizeof(ubo));
 }
 
-
-//void Engine::updateParticleUniformBuffer(uint32_t currentImage) {
-//    ParticleUniformBufferObject pubo{};
-//    pubo.deltaTime = lastFrameTime * 2.0f;
-//
-//    memcpy(bfr.particleUniformBuffersMapped[currentImage], &pubo, sizeof(pubo));
-//}
-
 void Engine::updateStorageBuffer(uint32_t currentImage) {
     static auto startTime = std::chrono::high_resolution_clock::now();
 
@@ -329,6 +328,10 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
     renderPassInfo.pClearValues = clearValues.data();
 
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.graphicsPipeline_particles);
+
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.pipelineLayout_particles, 0, 1, &dscr.descriptorSets_uniformMVP[currentFrame], 0, nullptr);
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -345,31 +348,37 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
     VkDeviceSize offsets[] = { 0 };
+    
+    // ================ CURRENT PROBLEM AND SETTING ===================
+    // initializing vertex data on device-local memory (storage & vertex mem)
+    // without modifying binding this mem to vertex data of a gfx pipeline.
 
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.graphicsPipeline_particles);
+    // draw compute on gfx particle pipeline
 
-    VkBuffer vertexBuffers[] = { bfr.buffer_storageParticles[currentFrame]};
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.pipelineLayout_particles, 0, 1, &dscr.descriptorSets_uniformMVP[currentFrame], 0, nullptr);
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &bfr.buffer_storageComputeParticles[currentFrame], offsets);
 
     vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_POINT_LIST);
-    vkCmdSetLineWidth(commandBuffer, 2.0f);
 
-    vkCmdDraw(commandBuffer, static_cast<uint32_t>(PARTICLE_COUNT), 1, 0, 0);
+    vkCmdDraw(commandBuffer, PARTICLE_COUNT, 1, 0, 0);
 
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.graphicsPipeline);
+    //// draw cpu particles
+    //VkBuffer vertexBuffers2[] = { bfr.buffer_storageParticles[currentFrame]};
+    //vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers2, offsets);
 
-    VkBuffer vertexBuffers2[] = { bfr.vertexBuffer };
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers2, offsets);
+    //vkCmdDraw(commandBuffer, PARTICLE_COUNT, 1, 0, 0);
+    ////// draw polygon geom
+    //vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.graphicsPipeline);
 
-    vkCmdBindIndexBuffer(commandBuffer, bfr.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    //VkBuffer vertexBuffers3[] = { bfr.vertexBuffer };
+    //vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers3, offsets);
 
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.pipelineLayout, 0, 1, &dscr.descriptorSets_multi_MPV_TS_TRN[currentFrame], 0, nullptr);
+    //vkCmdBindIndexBuffer(commandBuffer, bfr.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-    vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    //vkCmdSetLineWidth(commandBuffer, 10.0f);
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(bfr.indices.size()), 1, 0, 0, 0);
+    //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.pipelineLayout, 0, 1, &dscr.descriptorSets_multi_MPV_TS_TRN[currentFrame], 0, nullptr);
+
+    //vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    //vkCmdSetLineWidth(commandBuffer, 2.0f);
+    //vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(bfr.indices.size()), 1, 0, 0, 0);
 
 
     vkCmdEndRenderPass(commandBuffer);
@@ -440,16 +449,32 @@ void Engine::recreateSwapChain() {
 
 void Engine::drawFrame() {
 
-    //vkWaitForFences(device, 1, &sync.particleCPUUpdateFinishedFences[currentFrame], VK_TRUE, UINT64_MAX);
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    
-    //vkResetFences(device, 1, &sync.particleCPUUpdateFinishedFences[currentFrame]);
+    // Compute submission        
+    vkWaitForFences(device, 1, &sync.computeInFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
-   
+    updateBufferMapped_uniformDeltaTime(currentFrame);
+
+    vkResetFences(device, 1, &sync.computeInFlightFences[currentFrame]);
+
+    vkResetCommandBuffer(cmd.computeCommandBuffers[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
+    recordComputeCommandBuffer(cmd.computeCommandBuffers[currentFrame]);
+
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &cmd.computeCommandBuffers[currentFrame];
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = &sync.computeFinishedSemaphores[currentFrame];
+    VkResult resultCompute = vkQueueSubmit(computeQueue, 1, &submitInfo, sync.computeInFlightFences[currentFrame]);
+    if (resultCompute != VK_SUCCESS) {
+        throw std::runtime_error("failed to submit compute command buffer!");
+    };
+
+    // Graphics submission
     vkWaitForFences(device, 1, &sync.inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
-    updateBufferMapped_storageParticles(currentFrame);
-
+    //updateBufferMapped_storageParticles(currentFrame);
 
     updateStorageBuffer(currentFrame);
     updateUniformBuffer(currentFrame);
@@ -473,15 +498,13 @@ void Engine::drawFrame() {
     
 
     VkSemaphore waitSemaphores[] = { 
-        //sync.particleCPUUpdateFinishedSemaphores[currentFrame],
+        sync.computeFinishedSemaphores[currentFrame],
         sync.imageAvailableSemaphores[currentFrame] };
     VkPipelineStageFlags waitStages[] = { 
-       // VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 
+        VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
+   
     submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 

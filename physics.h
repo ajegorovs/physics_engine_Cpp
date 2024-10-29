@@ -22,7 +22,6 @@ public:
 		std::default_random_engine rndEngine((unsigned)time(nullptr));
 		std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
 
-		float id = 0;
 		std::vector<point3D> particles(PARTICLE_COUNT);
 		for (auto& particle : particles) {
 			particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 0.5f * rndDist(rndEngine));
@@ -32,8 +31,29 @@ public:
 			particle.acceleration = glm::vec3(0.0f, 0.0f, 0.0f);
 			particle.mass = glm::float32(1.0);
 			particle.damping = glm::float32(0.0);
+		}
 
-			id += 0.1;
+		return particles;
+	}
+
+	static std::vector<point3D> generateParticles2() {
+		// Initialize particles
+		std::default_random_engine rndEngine((unsigned)time(nullptr));
+		std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
+
+		std::vector<point3D> particles(PARTICLE_COUNT);
+		for (auto& particle : particles) {
+			float r = 0.25f;// *sqrt(rndDist(rndEngine));
+			float theta = rndDist(rndEngine) * 2.0f * 3.14159265358979323846f;
+			float x = r * cos(theta);
+			float y = r * sin(theta);
+			float z = 0.1f;
+			particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 1.0f);
+			particle.position = glm::vec3(0.f,0.f,0.f)+ glm::ballRand(0.05f);//glm::vec3(x-0.5f, y, z);
+			particle.velocity = glm::vec3(x - 0.5f, y, z);// glm::ballRand(0.1f);
+			particle.acceleration = glm::vec3(x - 0.5f, y, z);// glm::ballRand(1.0f);// glm::vec3(0.0f, 0.0f, 0.0f);
+			particle.mass = glm::float32(1.0);
+			particle.damping = glm::float32(0.0);
 		}
 
 		return particles;

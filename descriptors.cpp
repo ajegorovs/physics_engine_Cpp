@@ -285,29 +285,31 @@ void Descriptors::createDSL_1UC_2SC()
     // For particles compute pipeline. 
     // bindings: time, particle params old and current
 
-    std::array<VkDescriptorSetLayoutBinding, 3> layoutBindings{};
-    layoutBindings[0].binding = 0;
-    layoutBindings[0].descriptorCount = 1;
-    layoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutBindings[0].pImmutableSamplers = nullptr;
-    layoutBindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    VkDescriptorSetLayoutBinding uboLayoutBinding{};
+    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-    layoutBindings[1].binding = 1;
-    layoutBindings[1].descriptorCount = 1;
-    layoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutBindings[1].pImmutableSamplers = nullptr;
-    layoutBindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    VkDescriptorSetLayoutBinding sboLayoutBinding1{};
+    sboLayoutBinding1.binding = 1;
+    sboLayoutBinding1.descriptorCount = 1;
+    sboLayoutBinding1.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    sboLayoutBinding1.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-    layoutBindings[2].binding = 2;
-    layoutBindings[2].descriptorCount = 1;
-    layoutBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutBindings[2].pImmutableSamplers = nullptr;
-    layoutBindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    VkDescriptorSetLayoutBinding sboLayoutBinding2{};
+    sboLayoutBinding2.binding = 2;
+    sboLayoutBinding2.descriptorCount = 1;
+    sboLayoutBinding2.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    sboLayoutBinding2.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
+
+    std::array<VkDescriptorSetLayoutBinding, 3> bindings = { uboLayoutBinding, sboLayoutBinding1, sboLayoutBinding2 };
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = 3;
-    layoutInfo.pBindings = layoutBindings.data();
+    layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+    layoutInfo.pBindings = bindings.data();
+       
 
     if (vkCreateDescriptorSetLayout(*pDevice, &layoutInfo, nullptr, &descriptorSetLayout_1UC_2SC) != VK_SUCCESS) {
         throw std::runtime_error("failed to create compute descriptor set layout!");

@@ -174,7 +174,7 @@ uint32_t Device2::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags prop
 
 // vulkan init - public
 // set pointers to device, graphicsQueue and presentQueue
-void Device2::createLogicalDevice(const std::vector<const char*> validationLayers, VkQueue * pGraphicsQueue, VkQueue * pPresentQueue) {
+void Device2::createLogicalDevice(const std::vector<const char*> validationLayers, VkQueue * pGraphicsQueue, VkQueue * pPresentQueue, VkQueue* pComputeQueue) {
     QueueFamilyIndices indices = findQueueFamilies();
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
@@ -241,7 +241,9 @@ void Device2::createLogicalDevice(const std::vector<const char*> validationLayer
     }
 
     vkGetDeviceQueue(*pDevice, indices.graphicsAndComputeFamily.value(), 0, pGraphicsQueue);
+    vkGetDeviceQueue(*pDevice, indices.graphicsAndComputeFamily.value(), 0, pComputeQueue);
     vkGetDeviceQueue(*pDevice, indices.presentFamily.value(), 0, pPresentQueue);
+
 }
 // local findDepthFormat. but thats not local
 VkFormat Device2::findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
