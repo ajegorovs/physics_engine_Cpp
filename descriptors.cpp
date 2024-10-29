@@ -13,7 +13,6 @@
 // stageFlags       - which shader stages have access to resources
 // (Layout creation is fixed at pipeline creation.)
 
-
 Descriptors::Descriptors() {}
 
 Descriptors::Descriptors(VkDevice * pDevice) : pDevice(pDevice) {}
