@@ -17,6 +17,7 @@ Engine::Engine() :
     swp(&surface, &device, &dvc.physicalDevice, &dvc.msaaSamples),
     sync(&device),
     gfx(&device, &dvc.msaaSamples),
+    cmpt(&device),
     dscr(&device),
     cmd(&device, &dvc.physicalDevice, &surface),
     bfr(&device, &dvc.physicalDevice, &cmd.commandPool, &graphicsQueue) 
@@ -59,11 +60,11 @@ void Engine::run()
 
     dscr.createDSL_uniformMVP();
     dscr.createDSL_multi_MPV_TS_TRN();
-    dscr.createDSL_storageParticles();
-    dscr.createDSL_2UV_2SV();
+    dscr.createDSL_1UC_2SC();
 
     gfx.createGraphicsPipeline_storageVertices(&dscr.descriptorSetLayout_multi_MPV_TS_TRN, &swp.renderPass);                           // pipelineLayout, graphicsPipeline
     gfx.createGraphicsPipeline_storageParticles(&dscr.descriptorSetLayout_uniformMVP, &swp.renderPass);                          // pipelineLayout, graphicsPipeline
+    cmpt.createComputePipeline_particle(&dscr.descriptorSetLayout_1UC_2SC);                          // pipelineLayout, graphicsPipeline
 
     cmd.createCommandPool();                                                // commandPool
     swp.createColorResources();                                             // colorImageView
@@ -80,22 +81,24 @@ void Engine::run()
 
     bfr.createBuffer_uniformMVP();
     bfr.createBuffer_storageTransformations();
-    bfr.createBuffer_storageParticles(center, 0.2f*center_mass + 0.8f*center_mass2, grav_const, reference_axis);                                    // will act as vertex buffer for particles
+    bfr.createBuffer_storageParticles(          center, 0.2f*center_mass + 0.8f*center_mass2, grav_const, reference_axis);                                    // will act as vertex buffer for particles
+    bfr.createBuffer_storageComputeParticles(   center, 0.2f*center_mass + 0.8f*center_mass2, grav_const, reference_axis);                                    // will act as vertex buffer for particles
     bfr.createBuffer_uniformDeltaTime();
 
     dscr.createDescriptorPool();
+
     dscr.createDS_multi_MPV_TS_TRN(
         bfr.buffer_uniformMVP,  bfr.buffer_storageTransformations,
-        swp.textureImageView,   swp.textureSampler);
+        swp.textureImageView,   swp.textureSampler
+    );
     dscr.createDS_uniformMVP(bfr.buffer_uniformMVP);
-    /*dscr.createDS_multiFrameParticles(
-        bfr.buffer_uniformMVP,
+    dscr.createDS_1UC_2SC_1Time_2ParticleParams(
         bfr.buffer_uniformDeltaTime, 
-        bfr.buffer_storageParticles);*/
-
-    //dscr.createDS_storageParticles(bfr.buffer_storageParticles)       // does not work. not needed.
+        bfr.buffer_storageComputeParticles
+    );
 
     cmd.createCommandBuffers();
+    cmd.createComputeCommandBuffers();
     sync.createSyncObjects();
     bool firstFrameCompleted = false; // second frame has anamolous frame time.
     double currentTime = 0.0f;
@@ -343,7 +346,7 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
 
     VkDeviceSize offsets[] = { 0 };
 
-     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.graphicsPipeline_particles);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.graphicsPipeline_particles);
 
     VkBuffer vertexBuffers[] = { bfr.buffer_storageParticles[currentFrame]};
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
@@ -376,6 +379,25 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
     }
 }
 
+void Engine::recordComputeCommandBuffer(VkCommandBuffer commandBuffer) {
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
+        throw std::runtime_error("failed to begin recording compute command buffer!");
+    }
+
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePipeline);
+
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePipelineLayout, 0, 1, &dscr.descriptorSets_1UC_2SC[currentFrame], 0, nullptr);
+
+    vkCmdDispatch(commandBuffer, PARTICLE_COUNT / 256, 1, 1);
+
+    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to record compute command buffer!");
+    }
+
+}
 
 //void Engine::recordComputeCommandBuffer(VkCommandBuffer commandBuffer)
 //{
@@ -508,6 +530,7 @@ void Engine::cleanup() {
     std::cout << std::string(40, '-') <<" CLEANUP " << std::string(40, '-') << std::endl;
     swp.cleanupSwapChain();
     gfx.cleanup();
+    cmpt.cleanup();
     swp.cleanupRenderPass();
     bfr.clearBuffers1();
     dscr.cleanupDPool();

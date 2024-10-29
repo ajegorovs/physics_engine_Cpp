@@ -23,8 +23,6 @@ private:
 	VkDevice* pDevice;
 	VkSampleCountFlagBits* pMsaaSamples;
 
-	VkShaderModule createShaderModule(const std::vector<char>& code);
-
 	void createGraphicsPipeline(
 		VkPipeline* pGraphicsPipeline, VkPrimitiveTopology topology,
 		VkPipelineLayout* pPipelineLayout, VkDescriptorSetLayout* pDescriptorSetLayout, std::string vertDir, std::string fragDir,

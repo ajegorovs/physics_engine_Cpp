@@ -17,6 +17,7 @@ public:
 	std::vector<uint32_t> indices;
 	std::vector<VkBuffer> buffer_storageTransformations;
 	std::vector<VkBuffer> buffer_storageParticles;
+	std::vector<VkBuffer> buffer_storageComputeParticles;
 	std::vector<VkBuffer> buffer_uniformMVP;
 	std::vector<VkBuffer> buffer_uniformDeltaTime;
 
@@ -29,6 +30,7 @@ public:
 
 	void createBuffer_storageTransformations();
 	void createBuffer_storageParticles(glm::vec3 mass_center_pos, glm::float32 bigMass, glm::float32 grav_const, glm::vec3 reference_axis);
+	void createBuffer_storageComputeParticles(glm::vec3 mass_center_pos, glm::float32 bigMass, glm::float32 grav_const, glm::vec3 reference_axis);
 	void createBuffer_uniformMVP();
 	void createBuffer_uniformDeltaTime();
 
@@ -47,6 +49,7 @@ private:
 	std::vector<VkDeviceMemory> uniformBuffersMemory;
 	std::vector<VkDeviceMemory> bufferMemory_storageTransformations;
 	std::vector<VkDeviceMemory> bufferMemory_storageParticles;
+	std::vector<VkDeviceMemory> bufferMemory_storageComputeParticles;
 	std::vector<VkDeviceMemory> bufferMemory_uniformMVP;
 	std::vector<VkDeviceMemory> bufferMemory_uniformDeltaTime;
 	VkDeviceMemory vertexBufferMemory;

@@ -39,29 +39,13 @@ void Graphics::createGraphicsPipeline_storageParticles(VkDescriptorSetLayout* pD
         pRenderPass);
 }
 
-
-VkShaderModule Graphics::createShaderModule(const std::vector<char>& code)
-{
-    VkShaderModuleCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.codeSize = code.size();
-    createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
-
-    VkShaderModule shaderModule;
-    if (vkCreateShaderModule(*pDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create shader module!");
-    }
-
-    return shaderModule;
-}
-
 void Graphics::createGraphicsPipeline(VkPipeline* pGraphicsPipeline, VkPrimitiveTopology topology, VkPipelineLayout* pPipelineLayout, VkDescriptorSetLayout* pDescriptorSetLayout, std::string vertDir, std::string fragDir, VkVertexInputBindingDescription bindingDescription, std::vector<VkVertexInputAttributeDescription> attributeDescriptions, VkRenderPass* pRenderPass)
 {
     auto vertShaderCode = Misc::readFile(vertDir);
     auto fragShaderCode = Misc::readFile(fragDir);
 
-    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
-    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+    VkShaderModule vertShaderModule = Misc::createShaderModule(pDevice, vertShaderCode);
+    VkShaderModule fragShaderModule = Misc::createShaderModule(pDevice, fragShaderCode);
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;

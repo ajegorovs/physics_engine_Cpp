@@ -57,11 +57,10 @@ void Sync::transitionImageLayout(VkDevice device, VkCommandPool commandPool, VkQ
 void Sync::createSyncObjects() {
     imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
     renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-
-    particleCPUUpdateFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    computeFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
 
     inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
-    particleCPUUpdateFinishedFences.resize(MAX_FRAMES_IN_FLIGHT);
+    computeInFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
 
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -73,10 +72,12 @@ void Sync::createSyncObjects() {
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         if (vkCreateSemaphore(*pDevice, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
             vkCreateSemaphore(*pDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
-            vkCreateSemaphore(*pDevice, &semaphoreInfo, nullptr, &particleCPUUpdateFinishedSemaphores[i]) != VK_SUCCESS ||
-            vkCreateFence(*pDevice, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS ||
-            vkCreateFence(*pDevice, &fenceInfo, nullptr, &particleCPUUpdateFinishedFences[i]) != VK_SUCCESS) {
+            vkCreateFence(*pDevice, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS){
             throw std::runtime_error("failed to create synchronization objects for a frame!");
+        }
+        if (vkCreateSemaphore(*pDevice, &semaphoreInfo, nullptr, &computeFinishedSemaphores[i]) != VK_SUCCESS ||
+            vkCreateFence(*pDevice, &fenceInfo, nullptr, &computeInFlightFences[i]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create compute synchronization objects for a frame!");
         }
     }
 }
@@ -85,8 +86,8 @@ void Sync::cleanup() {
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroySemaphore( *pDevice, renderFinishedSemaphores[i], nullptr);
         vkDestroySemaphore( *pDevice, imageAvailableSemaphores[i], nullptr);
-        vkDestroySemaphore( *pDevice, particleCPUUpdateFinishedSemaphores[i], nullptr);
+        vkDestroySemaphore( *pDevice, computeFinishedSemaphores[i], nullptr);
         vkDestroyFence(     *pDevice, inFlightFences[i], nullptr);
-        vkDestroyFence(     *pDevice, particleCPUUpdateFinishedFences[i], nullptr);
+        vkDestroyFence(     *pDevice, computeInFlightFences[i], nullptr);
     }
 }

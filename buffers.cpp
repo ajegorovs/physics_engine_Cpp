@@ -89,6 +89,26 @@ void Buffers::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize si
     Commands::endSingleTimeCommands(*pDevice, *graphicsQueue,*commandPool, commandBuffer);
 }
 
+void Buffers::createVertexBuffer() {
+    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+    void* data;
+    vkMapMemory(*pDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, vertices.data(), (size_t)bufferSize);
+    vkUnmapMemory(*pDevice, stagingBufferMemory);
+
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
+
+    copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+
+    vkDestroyBuffer(*pDevice, stagingBuffer, nullptr);
+    vkFreeMemory(*pDevice, stagingBufferMemory, nullptr);
+}
+
 void Buffers::createIndexBuffer() {
     // CPU (host) does not have access to GPU (device, local) memory. Its "invisible". 
     // staging buffer is "host-visible" so it can act as inermediate stage.
@@ -117,21 +137,83 @@ void Buffers::createIndexBuffer() {
     // Comment: Having staging buffer being SRC and final buffer being DST sounds right. But tbh it does not make 100% sense, as both targets are on GPU.
 }
 
-void Buffers::createVertexBuffer() {
-    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+void Buffers::createBuffer_storageTransformations() {
+    // Custom storage buffer. but same logic of host-visible memory.
+    VkDeviceSize bufferSize = sizeof(StructObjectTransformations);
+
+    buffer_storageTransformations.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_storageTransformations.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMapped_storageTransformtions.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBuffer(bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            buffer_storageTransformations[i], bufferMemory_storageTransformations[i]);
+
+        vkMapMemory(*pDevice, bufferMemory_storageTransformations[i], 0, bufferSize, 0, &bufferMapped_storageTransformtions[i]);
+    }
+}
+
+void Buffers::createBuffer_storageParticles(glm::vec3 mass_center_pos, glm::float32 bigMass, glm::float32 grav_const, glm::vec3 reference_axis) {
+    // Custom storage buffer. but same logic of host-visible memory.
+    VkDeviceSize bufferSize = sizeof(point3D) * PARTICLE_COUNT;
+
+    buffer_storageParticles.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_storageParticles.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMapped_storageParticles.resize(MAX_FRAMES_IN_FLIGHT);
+
+    std::default_random_engine rndEngine((unsigned)time(nullptr));
+    std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
+
+    // init
+    std::vector<point3D> particles = Physics::generateParticles(mass_center_pos, bigMass, grav_const, reference_axis);
+    
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBuffer(bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+            buffer_storageParticles[i], bufferMemory_storageParticles[i]);
+
+        // get a pointer bufferMapped_ to a memory block of type bufferMemory_ and of size bufferSize
+        vkMapMemory(*pDevice, bufferMemory_storageParticles[i], 0, bufferSize, 0, &bufferMapped_storageParticles[i]);
+        // copy particle data of size bufferSize to storage buffer bufferMapped_.
+        memcpy(bufferMapped_storageParticles[i], particles.data(), (size_t)bufferSize);
+        vkUnmapMemory(*pDevice, bufferMemory_storageParticles[i]);
+    }
+}
+
+void Buffers::createBuffer_storageComputeParticles(glm::vec3 mass_center_pos, glm::float32 bigMass, glm::float32 grav_const, glm::vec3 reference_axis)
+{
+    std::vector<point3D> particles = Physics::generateParticles(mass_center_pos, bigMass, grav_const, reference_axis);
+
+    VkDeviceSize bufferSize = sizeof(point3D) * PARTICLE_COUNT;
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+    createBuffer(
+        bufferSize, 
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+        stagingBuffer, 
+        stagingBufferMemory);
 
     void* data;
     vkMapMemory(*pDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, vertices.data(), (size_t)bufferSize);
+    memcpy(data, particles.data(), (size_t)bufferSize);
     vkUnmapMemory(*pDevice, stagingBufferMemory);
 
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
+    buffer_storageComputeParticles.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_storageComputeParticles.resize(MAX_FRAMES_IN_FLIGHT);
 
-    copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+    // Copy initial particle data to all storage buffers
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBuffer(
+            bufferSize, 
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
+            buffer_storageComputeParticles[i], 
+            bufferMemory_storageComputeParticles[i]);
+        copyBuffer(stagingBuffer, buffer_storageComputeParticles[i], bufferSize);
+    }
 
     vkDestroyBuffer(*pDevice, stagingBuffer, nullptr);
     vkFreeMemory(*pDevice, stagingBufferMemory, nullptr);
@@ -141,22 +223,21 @@ void Buffers::createBuffer_uniformMVP() {
     // shader data should be on GPU. it at least can be host-visible
     // but better performance would be "deeper" on GPU.
     VkDeviceSize bufferSize = sizeof(StructMVP);
-    
+
     buffer_uniformMVP.resize(MAX_FRAMES_IN_FLIGHT);
     bufferMemory_uniformMVP.resize(MAX_FRAMES_IN_FLIGHT);
     bufferMapped_uniformMVP.resize(MAX_FRAMES_IN_FLIGHT);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         createBuffer(
-            bufferSize, 
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-            buffer_uniformMVP[i], 
+            bufferSize,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            buffer_uniformMVP[i],
             bufferMemory_uniformMVP[i]
         );
 
         vkMapMemory(*pDevice, bufferMemory_uniformMVP[i], 0, bufferSize, 0, &bufferMapped_uniformMVP[i]);
-        // unmap memory ?
     }
 }
 
@@ -178,106 +259,8 @@ void Buffers::createBuffer_uniformDeltaTime()
         );
 
         vkMapMemory(*pDevice, bufferMemory_uniformDeltaTime[i], 0, bufferSize, 0, &bufferMapped_uniformDeltaTime[i]);
-        // unmap memory ?
     }
 }
-
-void Buffers::createBuffer_storageTransformations() {
-    // Custom storage buffer. but same logic of host-visible memory.
-    VkDeviceSize bufferSize = sizeof(StructObjectTransformations);
-
-    buffer_storageTransformations.resize(MAX_FRAMES_IN_FLIGHT);
-    bufferMemory_storageTransformations.resize(MAX_FRAMES_IN_FLIGHT);
-    bufferMapped_storageTransformtions.resize(MAX_FRAMES_IN_FLIGHT);
-
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        createBuffer(bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, 
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-            buffer_storageTransformations[i], bufferMemory_storageTransformations[i]);
-
-        vkMapMemory(*pDevice, bufferMemory_storageTransformations[i], 0, bufferSize, 0, &bufferMapped_storageTransformtions[i]);
-    }
-}
-
-void Buffers::createBuffer_storageParticles(glm::vec3 mass_center_pos, glm::float32 bigMass, glm::float32 grav_const, glm::vec3 reference_axis) {
-    // Custom storage buffer. but same logic of host-visible memory.
-    VkDeviceSize bufferSize = sizeof(point3D) * PARTICLE_COUNT;
-
-    buffer_storageParticles.resize(MAX_FRAMES_IN_FLIGHT);
-    bufferMemory_storageParticles.resize(MAX_FRAMES_IN_FLIGHT);
-    bufferMapped_storageParticles.resize(MAX_FRAMES_IN_FLIGHT);
-
-    std::default_random_engine rndEngine((unsigned)time(nullptr));
-    std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
-
-    // init
-    float id = 0;
-    std::vector<point3D> particles(PARTICLE_COUNT);
-    for (auto& particle : particles) {
-        particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 0.5f * rndDist(rndEngine) );
-        particle.position = mass_center_pos + glm::vec3(0.0f, 2.0f, 0.0f) + glm::ballRand((rndDist(rndEngine)*0.03f));// glm::vec3(glm::circularRand(0.5f), 0.0f); //glm::vec3(glm::diskRand(0.1f), 0.2f); // ;//  //glm::vec3(0.0f * rndDist(rndEngine), 0.0f * rndDist(rndEngine), 0.0f * 0.2f*rndDist(rndEngine));
-
-        particle.velocity = Physics::set_circular_orbit_velocity(mass_center_pos, bigMass, particle.position, grav_const, reference_axis);// glm::ballRand(1.0f);// 
-        particle.acceleration = glm::vec3(0.0f, 0.0f, 0.0f);
-        particle.mass = glm::float32(1.0);
-        particle.damping = glm::float32(0.0);
-
-        id += 0.1;
-    }
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        createBuffer(bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-            buffer_storageParticles[i], bufferMemory_storageParticles[i]);
-
-        // get a pointer bufferMapped_ to a memory block of type bufferMemory_ and of size bufferSize
-        vkMapMemory(*pDevice, bufferMemory_storageParticles[i], 0, bufferSize, 0, &bufferMapped_storageParticles[i]);
-        // copy particle data of size bufferSize to storage buffer bufferMapped_.
-        memcpy(bufferMapped_storageParticles[i], particles.data(), (size_t)bufferSize);
-        vkUnmapMemory(*pDevice, bufferMemory_storageParticles[i]);
-    }
-}
-//void Buffers::createShaderStorageBuffers() {
-//    // We will store data "deep" in GPU on device-local memory. No access for CPU (?).
-//    // we again use staging buffer to transfer data to GPU.
-//    VkDeviceSize bufferSize = sizeof(Particle) * PARTICLE_COUNT;
-//
-//    shaderStorageBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-//    shaderStorageBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
-//
-//
-//    // Initialize particles
-//    std::default_random_engine rndEngine((unsigned)time(nullptr));
-//    std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
-//    // generate particele data in RAM
-//    std::vector<Particle> particles(PARTICLE_COUNT);
-//    for (auto& particle : particles) {
-//        float r = 0.25f * sqrt(rndDist(rndEngine));
-//        float theta = rndDist(rndEngine) * 2 * 3.14159265358979323846;
-//        float x = r * cos(theta) * HEIGHT / WIDTH;
-//        float y = r * sin(theta);
-//        particle.position = glm::vec2(x, y);
-//        particle.velocity = glm::normalize(glm::vec2(x, y)) * 0.00025f;
-//        particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 1.0f);
-//    }
-//    // we again use staging buffer to transfer data to GPU. read Buffers::createIndexBuffer().
-//    VkBuffer stagingBuffer;
-//    VkDeviceMemory stagingBufferMemory;
-//    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-//    // Copy particle data to GPU
-//    void* data;
-//    vkMapMemory(*device, stagingBufferMemory, 0, bufferSize, 0, &data);
-//    memcpy(data, particles.data(), (size_t)bufferSize);
-//    vkUnmapMemory(*device, stagingBufferMemory);
-//    // deep on gpu (DEVICE_LOCAL_BIT), gets written in, used as a storage buffer by vertex shader.
-//    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-//        createBuffer(bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-//            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, shaderStorageBuffers[i], shaderStorageBuffersMemory[i]);
-//        copyBuffer(stagingBuffer, shaderStorageBuffers[i], bufferSize);
-//    }
-//
-//    vkDestroyBuffer(*device, stagingBuffer, nullptr);
-//    vkFreeMemory(*device, stagingBufferMemory, nullptr);
-//}
 
 void Buffers::clearBuffers1(){
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -287,11 +270,13 @@ void Buffers::clearBuffers1(){
         vkDestroyBuffer(*pDevice, buffer_uniformMVP[i], nullptr);
         vkDestroyBuffer(*pDevice, buffer_storageTransformations[i], nullptr);
         vkDestroyBuffer(*pDevice, buffer_storageParticles[i], nullptr);
+        vkDestroyBuffer(*pDevice, buffer_storageComputeParticles[i], nullptr);
         vkDestroyBuffer(*pDevice, buffer_uniformDeltaTime[i], nullptr);
 
         vkFreeMemory(   *pDevice, bufferMemory_uniformMVP[i], nullptr);
         vkFreeMemory(   *pDevice, bufferMemory_storageTransformations[i], nullptr);
         vkFreeMemory(   *pDevice, bufferMemory_storageParticles[i], nullptr);
+        vkFreeMemory(   *pDevice, bufferMemory_storageComputeParticles[i], nullptr);
         vkFreeMemory(   *pDevice, bufferMemory_uniformDeltaTime[i], nullptr);
     }
 }

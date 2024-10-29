@@ -204,7 +204,7 @@ private:
         createRenderPass();
         createComputeDescriptorSetLayout();
         createGraphicsPipeline();
-        createComputePipeline();
+        createComputePipeline, ();
         createFramebuffers();
         createCommandPool();
         createShaderStorageBuffers();
@@ -708,7 +708,7 @@ private:
         vkDestroyShaderModule(device, vertShaderModule, nullptr);
     }
 
-    void createComputePipeline() {
+    void createComputePipeline, () {
         auto computeShaderCode = readFile("shaders/comp.spv");
 
         VkShaderModule computeShaderModule = createShaderModule(computeShaderCode);

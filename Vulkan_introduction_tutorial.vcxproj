@@ -139,6 +139,7 @@
   <ItemGroup>
     <ClCompile Include="buffers.cpp" />
     <ClCompile Include="commands.cpp" />
+    <ClCompile Include="compute.cpp" />
     <ClCompile Include="debug2.cpp" />
     <ClCompile Include="descriptors.cpp" />
     <ClCompile Include="device2.cpp" />
@@ -156,6 +157,7 @@
   <ItemGroup>
     <ClInclude Include="buffers.h" />
     <ClInclude Include="commands.h" />
+    <ClInclude Include="compute.h" />
     <ClInclude Include="config.h" />
     <ClInclude Include="debug2.h" />
     <ClInclude Include="descriptors.h" />

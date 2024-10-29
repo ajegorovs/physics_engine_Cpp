@@ -8,6 +8,7 @@
 #include "glfw_support.h"
 #include "swapchain.h"
 #include "graphics.h"
+#include "compute.h"
 #include "descriptors.h"
 #include "sync.h"
 #include "buffers.h"
@@ -40,6 +41,7 @@ private:
 	Device2 dvc;
 	Swapchain swp;
 	Graphics gfx;
+	Compute cmpt;
 	Descriptors dscr;
 	Buffers bfr;
 	Commands cmd;
@@ -58,6 +60,7 @@ private:
 	//void updateShaderStorageBuffer(uint32_t currentImage);
 	void drawFrame();
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+	void recordComputeCommandBuffer(VkCommandBuffer commandBuffer);
 	//void recordComputeCommandBuffer(VkCommandBuffer commandBuffer);
 	void recreateSwapChain();
 	void cleanup();

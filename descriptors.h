@@ -3,6 +3,11 @@
 #include <GLFW/glfw3.h>
 #include <vector>
 
+// * Descriptor Set Layout (DSL) determines what kind of resources will be available for stages of some pipeline.
+// You specify number of bindings, their type and which stages they are available to.
+// You create a pipeline using DSL, but then can swap resources, if they conform to DSL.
+// * Descriptor Set (DS) defines a particular case/selection of resources that meet DSL requirements
+// DS is what you swap. 
 
 class Descriptors {
 public:
@@ -12,18 +17,13 @@ public:
 	void createDescriptorPool();
 
 	void createDSL_multi_MPV_TS_TRN(); // Swapchain->createDescriptorPool, createDS_multi_MPV_TS_TRN
-	void createDSL_storageParticles();  // as vertex buffer
 	void createDSL_uniformMVP();		// MVP only
-	void createDSL_2UV_2SV();		// 1 uniform, 2 STORAGE
-	
+	void createDSL_1UC_2SC();			
 
 	void createDS_multi_MPV_TS_TRN(std::vector<VkBuffer> uniformBuffers, std::vector<VkBuffer> storageBuffer, VkImageView textureImageView, VkSampler textureSampler);
-	void createDS_storageParticles(std::vector<VkBuffer>& pStorageBuffer);
 	void createDS_uniformMVP(std::vector<VkBuffer>& pUniformBuffer);
-	void createDS_multiFrameParticles(
-		std::vector<VkBuffer>& pUniformBuffer1,
-		std::vector<VkBuffer>& pUniformBuffer2,
-		std::vector<VkBuffer>& pStorageBuffer);
+
+	void createDS_1UC_2SC_1Time_2ParticleParams(std::vector<VkBuffer>& pUniformBuffer, std::vector<VkBuffer>& pStorageBuffer);
 		
 	void cleanupDSL();
 	void cleanupDPool();
@@ -31,14 +31,12 @@ public:
 	VkDescriptorPool descriptorPool;
 
 	VkDescriptorSetLayout descriptorSetLayout_multi_MPV_TS_TRN;
-	VkDescriptorSetLayout descriptorSetLayout_storageParticles;
 	VkDescriptorSetLayout descriptorSetLayout_uniformMVP;
-	VkDescriptorSetLayout descriptorSetLayout_2UV_2SV;
+	VkDescriptorSetLayout descriptorSetLayout_1UC_2SC;
 
 	std::vector<VkDescriptorSet> descriptorSets_multi_MPV_TS_TRN;
-	std::vector<VkDescriptorSet> descriptorSets_storageParticles;
 	std::vector<VkDescriptorSet> descriptorSets_uniformMVP;
-	std::vector<VkDescriptorSet> descriptorSets_2UV_2SV;
+	std::vector<VkDescriptorSet> descriptorSets_1UC_2SC;
 
 private:
 	VkDevice* pDevice;

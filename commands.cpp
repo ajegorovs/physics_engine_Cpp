@@ -6,20 +6,20 @@
 
 Commands::Commands() {};
 
-Commands::Commands(VkDevice* device, VkPhysicalDevice* physicalDevice, VkSurfaceKHR* surface): 
-    device(device), physicalDevice(physicalDevice), surface(surface)
+Commands::Commands(VkDevice * pDevice, VkPhysicalDevice * pPhysicalDevice, VkSurfaceKHR * pSurface): 
+    pDevice(pDevice), pPhysicalDevice(pPhysicalDevice), pSurface(pSurface)
 {
 }
 
 void Commands::createCommandPool() {
-    QueueFamilyIndices queueFamilyIndices = Device2::findQueueFamilies(*surface, *physicalDevice);
+    QueueFamilyIndices queueFamilyIndices = Device2::findQueueFamilies(*pSurface, *pPhysicalDevice);
 
     VkCommandPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsAndComputeFamily.value();
 
-    if (vkCreateCommandPool(*device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
+    if (vkCreateCommandPool(*pDevice, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
         throw std::runtime_error("failed to create graphics command pool!");
     }
 }
@@ -45,7 +45,7 @@ VkCommandBuffer Commands::beginSingleTimeCommands(VkDevice device, VkCommandPool
 
 VkCommandBuffer Commands::beginSingleTimeCommands()
 {
-    return beginSingleTimeCommands(*device, commandPool);
+    return beginSingleTimeCommands(*pDevice, commandPool);
 }
 
 void Commands::endSingleTimeCommands(VkDevice device, VkQueue graphicsQueue, VkCommandPool commandPool, VkCommandBuffer commandBuffer) {
@@ -62,7 +62,7 @@ void Commands::endSingleTimeCommands(VkDevice device, VkQueue graphicsQueue, VkC
     vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 }
 void Commands::endSingleTimeCommands(VkQueue graphicsQueue, VkCommandBuffer commandBuffer) {
-    endSingleTimeCommands(*device, graphicsQueue, commandPool, commandBuffer);
+    endSingleTimeCommands(*pDevice, graphicsQueue, commandPool, commandBuffer);
 }
 
 void Commands::createCommandBuffers() {
@@ -74,8 +74,23 @@ void Commands::createCommandBuffers() {
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = (uint32_t)commandBuffers.size();
 
-    if (vkAllocateCommandBuffers(*device, &allocInfo, commandBuffers.data()) != VK_SUCCESS) {
+    if (vkAllocateCommandBuffers(*pDevice, &allocInfo, commandBuffers.data()) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate command buffers!");
+    }
+}
+
+void Commands::createComputeCommandBuffers()
+{
+    computeCommandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = commandPool;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = (uint32_t)computeCommandBuffers.size();
+
+    if (vkAllocateCommandBuffers(*pDevice, &allocInfo, computeCommandBuffers.data()) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate compute command buffers!");
     }
 }
 
