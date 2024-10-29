@@ -215,7 +215,10 @@ void Engine::createInstance()
 
 void Engine::updateBufferMapped_uniformDeltaTime(uint32_t currentImage) {
     StructDeltaTime ubo{};
-    ubo.deltaTime = lastFrameTime * 12.0f;
+    ubo.deltaTime = lastFrameTime;
+    ubo.massBig = center_mass;
+    ubo.grav_const = grav_const;
+    ubo.grav_cetner = center;
 
     memcpy(bfr.bufferMapped_uniformDeltaTime[currentImage], &ubo, sizeof(ubo));
 }
@@ -367,18 +370,18 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
 
     //vkCmdDraw(commandBuffer, PARTICLE_COUNT, 1, 0, 0);
     // draw polygon geom
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.graphicsPipeline);
-
-    VkBuffer vertexBuffers3[] = { bfr.vertexBuffer };
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers3, offsets);
-
-    vkCmdBindIndexBuffer(commandBuffer, bfr.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.pipelineLayout, 0, 1, &dscr.descriptorSets_multi_MPV_TS_TRN[currentFrame], 0, nullptr);
-
-    vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    vkCmdSetLineWidth(commandBuffer, 2.0f);
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(bfr.indices.size()), 1, 0, 0, 0);
+    //vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.graphicsPipeline);
+    //
+    //VkBuffer vertexBuffers3[] = { bfr.vertexBuffer };
+    //vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers3, offsets);
+    //
+    //vkCmdBindIndexBuffer(commandBuffer, bfr.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    //
+    //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.pipelineLayout, 0, 1, &dscr.descriptorSets_multi_MPV_TS_TRN[currentFrame], 0, nullptr);
+    //
+    //vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    //vkCmdSetLineWidth(commandBuffer, 2.0f);
+    //vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(bfr.indices.size()), 1, 0, 0, 0);
 
 
     vkCmdEndRenderPass(commandBuffer);

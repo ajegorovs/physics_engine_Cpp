@@ -183,8 +183,8 @@ void Buffers::createBuffer_storageParticles(glm::vec3 mass_center_pos, glm::floa
 
 void Buffers::createBuffer_storageComputeParticles(glm::vec3 mass_center_pos, glm::float32 bigMass, glm::float32 grav_const, glm::vec3 reference_axis)
 {
-    //std::vector<point3D> particles = Physics::generateParticles(mass_center_pos, bigMass, grav_const, reference_axis);
-    std::vector<point3D> particles = Physics::generateParticles2();
+    std::vector<point3D> particles = Physics::generateParticles(mass_center_pos, bigMass, grav_const, reference_axis);
+    //std::vector<point3D> particles = Physics::generateParticles2();
     VkDeviceSize bufferSize = sizeof(point3D) * PARTICLE_COUNT;
 
     VkBuffer stagingBuffer;

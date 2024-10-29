@@ -22,9 +22,12 @@
 #include "glm/ext.hpp"
 
 
-struct StructDeltaTime
+struct alignas(16) StructDeltaTime
 {
-    float deltaTime;
+    alignas(4) glm::float32 deltaTime;
+    alignas(4) glm::float32 massBig;
+    alignas(4) glm::float32 grav_const;
+    alignas(16) glm::vec3 grav_cetner;
 };
 
 // #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES should deal with glm::X

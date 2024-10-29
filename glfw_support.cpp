@@ -15,7 +15,7 @@ void GLFW_support::setWindowTitleWithFPS(float lastFrameTime) {
 
         // Format the window title with FPS value
         std::ostringstream title;
-        title << "FPS: " << std::fixed << std::setprecision(2) << fps;
+        title << "FPS: " << std::fixed << std::setprecision(2) << fps << " [ NUM PARTICLES: " << PARTICLE_COUNT << "]";
 
         // Set the formatted title
         glfwSetWindowTitle(window, title.str().c_str());

@@ -11,6 +11,9 @@ struct Particle {
 
 layout (binding = 0) uniform ParameterUBO {
     float deltaTime;
+	float massBig;
+	float grav_const;
+	vec3 center_massBig;
 } ubo;
 
 layout(std140, binding = 1) readonly buffer ParticleSSBOIn {
@@ -29,19 +32,24 @@ void main()
 	
     Particle particleIn = particlesIn[index];
     
-	
-	particlesOut[index].position = particleIn.position + particleIn.velocity * ubo.deltaTime;
-    particlesOut[index].velocity = particleIn.velocity;
-	
-	
+	particlesOut[index].position = particleIn.position + particleIn.velocity * ubo.deltaTime + 0.5f * particleIn.acceleration * ubo.deltaTime * ubo.deltaTime;
 
-    if ((particlesOut[index].position.x <= -1.0) || (particlesOut[index].position.x >= 1.0)) {
+	vec3 dir = ubo.center_massBig - particlesOut[index].position;
+    float distSquared = dot(dir, dir);
+    vec3 dir_normalized = normalize(dir);
+
+    particlesOut[index].acceleration = ubo.grav_const * ubo.massBig / distSquared * dir_normalized;
+
+    particlesOut[index].velocity = particleIn.velocity + 0.5f * (particleIn.acceleration + particlesOut[index].acceleration) * ubo.deltaTime;
+
+
+    if ((particlesOut[index].position.x <= -13.0) || (particlesOut[index].position.x >= 13.0)) {
         particlesOut[index].velocity.x = -particlesOut[index].velocity.x;
     }
-    if ((particlesOut[index].position.y <= -1.0) || (particlesOut[index].position.y >= 1.0)) {
+    if ((particlesOut[index].position.y <= -13.0) || (particlesOut[index].position.y >= 13.0)) {
         particlesOut[index].velocity.y = -particlesOut[index].velocity.y;
     }
-	if ((particlesOut[index].position.z <= -1.0) || (particlesOut[index].position.z >= 1.0)) {
+	if ((particlesOut[index].position.z <= -13.0) || (particlesOut[index].position.z >= 13.0)) {
         particlesOut[index].velocity.z = -particlesOut[index].velocity.z;
     }
 
