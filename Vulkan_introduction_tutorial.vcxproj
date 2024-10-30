@@ -149,6 +149,7 @@
     <ClCompile Include="MathsGL.cpp" />
     <ClCompile Include="misc.cpp" />
     <ClCompile Include="graphics.cpp" />
+    <ClCompile Include="physics.cpp" />
     <ClCompile Include="shapes.cpp" />
     <ClCompile Include="swapchain.cpp" />
     <ClCompile Include="sync.cpp" />

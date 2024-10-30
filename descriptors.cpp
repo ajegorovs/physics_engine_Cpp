@@ -1,6 +1,7 @@
 #include "descriptors.h"
 #include "config.h"	    // MAX_FRAMES_IN_FLIGHT, PARTICLE_COUNT
 #include "structs.h"
+#include "physics.h"
 #include <array>
 #include <stdexcept>
 
@@ -155,24 +156,26 @@ void Descriptors::createDS_uniformMVP(std::vector<VkBuffer>& pUniformBuffer)
         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 }
 
-void Descriptors::createDS_1UC_2SC_1Time_2ParticleParams(
-    std::vector<VkBuffer>& pUniformBuffer, 
-    std::vector<VkBuffer>& pStorageBuffer)
+void Descriptors::createDS_physics_compute( // to descriptorSets_1UC_4SC
+    std::vector<VkBuffer>& pUniformBuffer,  // deltaTime
+    std::vector<VkBuffer>& pStorageBuffer,  // constants
+    std::vector<VkBuffer>& pStorageBuffer2, // attractors
+    std::vector<VkBuffer>& pStorageBuffer3  // particle old/new
+)
 {
-    // DeltaTime and x2 Particle data for current & old frames
+    // deltaTime, system constants, attractor params, and x2 particle data for current & old frames
     // We bake notion of old and current frames into bindings using "circular buffering/indexing"
     // see ./images/access_previous_buffer_indexing.png for example with 3 frames-in-flight
-    // binding 2-> current, 1-> prev, 0->time.
 
-    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout_1UC_2SC);
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout_1UC_4SC);
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = descriptorPool;
     allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
     allocInfo.pSetLayouts = layouts.data();
 
-    descriptorSets_1UC_2SC.resize(MAX_FRAMES_IN_FLIGHT);
-    VkResult result = vkAllocateDescriptorSets(*pDevice, &allocInfo, descriptorSets_1UC_2SC.data());
+    descriptorSets_1UC_4SC.resize(MAX_FRAMES_IN_FLIGHT);
+    VkResult result = vkAllocateDescriptorSets(*pDevice, &allocInfo, descriptorSets_1UC_4SC.data());
     if (result != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate descriptor sets!");
     }
@@ -184,21 +187,31 @@ void Descriptors::createDS_1UC_2SC_1Time_2ParticleParams(
         bufferInfo_time.offset = 0;
         bufferInfo_time.range = sizeof(StructDeltaTime);
 
+        VkDescriptorBufferInfo bufferInfo_constants{};
+        bufferInfo_constants.buffer = pStorageBuffer[i];
+        bufferInfo_constants.offset = 0;
+        bufferInfo_constants.range = sizeof(StructParticleSystemParams);
+        
+        VkDescriptorBufferInfo bufferInfo_attractor_params{};
+        bufferInfo_attractor_params.buffer = pStorageBuffer2[i];
+        bufferInfo_attractor_params.offset = 0;
+        bufferInfo_attractor_params.range = sizeof(StructAttractor) * NUM_ATTRACTORS;
+
         // cross-link frames
         VkDescriptorBufferInfo bufferInfo_frame_prev{};
-        bufferInfo_frame_prev.buffer = pStorageBuffer[(i - 1) % MAX_FRAMES_IN_FLIGHT];
+        bufferInfo_frame_prev.buffer = pStorageBuffer3[(i - 1) % MAX_FRAMES_IN_FLIGHT];
         bufferInfo_frame_prev.offset = 0;
         bufferInfo_frame_prev.range = sizeof(point3D) * PARTICLE_COUNT;
 
         VkDescriptorBufferInfo bufferInfo_frame_current{};
-        bufferInfo_frame_current.buffer = pStorageBuffer[i];
+        bufferInfo_frame_current.buffer = pStorageBuffer3[i];
         bufferInfo_frame_current.offset = 0;
         bufferInfo_frame_current.range = sizeof(point3D) * PARTICLE_COUNT;
 
-        std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
+        std::array<VkWriteDescriptorSet, 5> descriptorWrites{};
 
         descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[0].dstSet = descriptorSets_1UC_2SC[i];
+        descriptorWrites[0].dstSet = descriptorSets_1UC_4SC[i];
         descriptorWrites[0].dstBinding = 0;
         descriptorWrites[0].dstArrayElement = 0;
         descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -206,20 +219,36 @@ void Descriptors::createDS_1UC_2SC_1Time_2ParticleParams(
         descriptorWrites[0].pBufferInfo = &bufferInfo_time;
 
         descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[1].dstSet = descriptorSets_1UC_2SC[i];
+        descriptorWrites[1].dstSet = descriptorSets_1UC_4SC[i];
         descriptorWrites[1].dstBinding = 1;
         descriptorWrites[1].dstArrayElement = 0;
         descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         descriptorWrites[1].descriptorCount = 1;
-        descriptorWrites[1].pBufferInfo = &bufferInfo_frame_prev;
+        descriptorWrites[1].pBufferInfo = &bufferInfo_constants;
 
         descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[2].dstSet = descriptorSets_1UC_2SC[i];
+        descriptorWrites[2].dstSet = descriptorSets_1UC_4SC[i];
         descriptorWrites[2].dstBinding = 2;
         descriptorWrites[2].dstArrayElement = 0;
         descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         descriptorWrites[2].descriptorCount = 1;
-        descriptorWrites[2].pBufferInfo = &bufferInfo_frame_current;
+        descriptorWrites[2].pBufferInfo = &bufferInfo_attractor_params;
+
+        descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[3].dstSet = descriptorSets_1UC_4SC[i];
+        descriptorWrites[3].dstBinding = 3;
+        descriptorWrites[3].dstArrayElement = 0;
+        descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptorWrites[3].descriptorCount = 1;
+        descriptorWrites[3].pBufferInfo = &bufferInfo_frame_prev;
+
+        descriptorWrites[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[4].dstSet = descriptorSets_1UC_4SC[i];
+        descriptorWrites[4].dstBinding = 4;
+        descriptorWrites[4].dstArrayElement = 0;
+        descriptorWrites[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptorWrites[4].descriptorCount = 1;
+        descriptorWrites[4].pBufferInfo = &bufferInfo_frame_current;
 
         vkUpdateDescriptorSets(*pDevice, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
     }
@@ -280,38 +309,56 @@ void Descriptors::createDSL_uniformMVP()
 }
 
 
-void Descriptors::createDSL_1UC_2SC()
+void Descriptors::createDSL_1UC_4SC()
 {
     // For particles compute pipeline. 
     // bindings: time, particle params old and current
 
-    VkDescriptorSetLayoutBinding uboLayoutBinding{};
-    uboLayoutBinding.binding = 0;
-    uboLayoutBinding.descriptorCount = 1;
-    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    VkDescriptorSetLayoutBinding ubo{};
+    ubo.binding             = 0;
+    ubo.descriptorCount     = 1;
+    ubo.descriptorType      = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    ubo.stageFlags          = VK_SHADER_STAGE_COMPUTE_BIT;
+    
+    VkDescriptorSetLayoutBinding sbo1{};
+    sbo1.binding            = 1;
+    sbo1.descriptorCount    = 1;
+    sbo1.descriptorType     = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    sbo1.stageFlags         = VK_SHADER_STAGE_COMPUTE_BIT;
 
-    VkDescriptorSetLayoutBinding sboLayoutBinding1{};
-    sboLayoutBinding1.binding = 1;
-    sboLayoutBinding1.descriptorCount = 1;
-    sboLayoutBinding1.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    sboLayoutBinding1.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    VkDescriptorSetLayoutBinding sbo2{};
+    sbo2.binding            = 2;
+    sbo2.descriptorCount    = 1;
+    sbo2.descriptorType     = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    sbo2.stageFlags         = VK_SHADER_STAGE_COMPUTE_BIT;
 
-    VkDescriptorSetLayoutBinding sboLayoutBinding2{};
-    sboLayoutBinding2.binding = 2;
-    sboLayoutBinding2.descriptorCount = 1;
-    sboLayoutBinding2.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    sboLayoutBinding2.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    VkDescriptorSetLayoutBinding sbo3{};
+    sbo3.binding            = 3;
+    sbo3.descriptorCount    = 1;
+    sbo3.descriptorType     = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    sbo3.stageFlags         = VK_SHADER_STAGE_COMPUTE_BIT;
 
+    VkDescriptorSetLayoutBinding sbo4{};
+    sbo4.binding            = 4;
+    sbo4.descriptorCount    = 1;
+    sbo4.descriptorType     = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    sbo4.stageFlags         = VK_SHADER_STAGE_COMPUTE_BIT;
 
-    std::array<VkDescriptorSetLayoutBinding, 3> bindings = { uboLayoutBinding, sboLayoutBinding1, sboLayoutBinding2 };
+    std::array<VkDescriptorSetLayoutBinding, 5> bindings = { 
+        ubo,
+        sbo1, 
+        sbo2, 
+        sbo3, 
+        sbo4 
+    };
+
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
     layoutInfo.pBindings = bindings.data();
        
 
-    if (vkCreateDescriptorSetLayout(*pDevice, &layoutInfo, nullptr, &descriptorSetLayout_1UC_2SC) != VK_SUCCESS) {
+    if (vkCreateDescriptorSetLayout(*pDevice, &layoutInfo, nullptr, &descriptorSetLayout_1UC_4SC) != VK_SUCCESS) {
         throw std::runtime_error("failed to create compute descriptor set layout!");
     }
 }
@@ -320,7 +367,7 @@ void Descriptors::cleanupDSL()
 {
     vkDestroyDescriptorSetLayout(*pDevice, descriptorSetLayout_multi_MPV_TS_TRN, nullptr);
     vkDestroyDescriptorSetLayout(*pDevice, descriptorSetLayout_uniformMVP, nullptr);
-    vkDestroyDescriptorSetLayout(*pDevice, descriptorSetLayout_1UC_2SC, nullptr);
+    vkDestroyDescriptorSetLayout(*pDevice, descriptorSetLayout_1UC_4SC, nullptr);
 }
 
 void Descriptors::cleanupDPool()

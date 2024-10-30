@@ -22,6 +22,7 @@ layout(location = 2) in vec3 velocity;
 layout(location = 3) in vec3 acceleration;
 layout(location = 4) in float mass;
 layout(location = 5) in float damping;
+layout(location = 6) in uint group_id;
 
 layout(location = 0) out vec4 fragColor;
 

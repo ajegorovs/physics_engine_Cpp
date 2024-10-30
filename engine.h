@@ -53,10 +53,10 @@ private:
 	//uint32_t num_frames = 0;
 	
 	const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
-	void updateUniformBuffer(uint32_t currentImage);
+	void updateBufferMapped_uniformMVP(uint32_t currentImage);
 	//void updateParticleUniformBuffer(uint32_t currentImage);
-	void updateStorageBuffer(uint32_t currentImage);
-	void updateBufferMapped_storageParticles(uint32_t currentImage);
+	void updateBufferMapped_storageTransformtions(uint32_t currentImage);
+	//void updateBufferMapped_storageParticles(uint32_t currentImage);
 	void updateBufferMapped_uniformDeltaTime(uint32_t currentImage);
 	//void updateShaderStorageBuffer(uint32_t currentImage);
 	void drawFrame();

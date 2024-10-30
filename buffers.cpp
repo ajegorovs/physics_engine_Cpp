@@ -154,38 +154,21 @@ void Buffers::createBuffer_storageTransformations() {
     }
 }
 
-void Buffers::createBuffer_storageParticles(glm::vec3 mass_center_pos, glm::float32 bigMass, glm::float32 grav_const, glm::vec3 reference_axis) {
-    // Custom storage buffer. but same logic of host-visible memory.
-    VkDeviceSize bufferSize = sizeof(point3D) * PARTICLE_COUNT;
 
-    buffer_storageParticles.resize(MAX_FRAMES_IN_FLIGHT);
-    bufferMemory_storageParticles.resize(MAX_FRAMES_IN_FLIGHT);
-    bufferMapped_storageParticles.resize(MAX_FRAMES_IN_FLIGHT);
-
-    //std::default_random_engine rndEngine((unsigned)time(nullptr));
-    //std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
-
-    // init
-    //std::vector<point3D> particles = Physics::generateParticles(mass_center_pos, bigMass, grav_const, reference_axis);
-    std::vector<point3D> particles = Physics::generateParticles2();
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        createBuffer(bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-            buffer_storageParticles[i], bufferMemory_storageParticles[i]);
-
-        // get a pointer bufferMapped_ to a memory block of type bufferMemory_ and of size bufferSize
-        vkMapMemory(*pDevice, bufferMemory_storageParticles[i], 0, bufferSize, 0, &bufferMapped_storageParticles[i]);
-        // copy particle data of size bufferSize to storage buffer bufferMapped_.
-        memcpy(bufferMapped_storageParticles[i], particles.data(), (size_t)bufferSize);
-        vkUnmapMemory(*pDevice, bufferMemory_storageParticles[i]);
-    }
-}
-
-void Buffers::createBuffer_storageComputeParticles(glm::vec3 mass_center_pos, glm::float32 bigMass, glm::float32 grav_const, glm::vec3 reference_axis)
+void Buffers::createBuffer_physics_particles_compute()
 {
-    std::vector<point3D> particles = Physics::generateParticles(mass_center_pos, bigMass, grav_const, reference_axis);
-    //std::vector<point3D> particles = Physics::generateParticles2();
+    std::vector<point3D> particles(PARTICLE_COUNT);
+
+    std::vector<uint32_t> particle_ids = Particles::getParticleGroupsIDs();
+
+    for (size_t i = 0; i < PARTICLE_COUNT; i++)
+    {
+        particles[i].group_id = particle_ids[i];
+
+    }
+
     VkDeviceSize bufferSize = sizeof(point3D) * PARTICLE_COUNT;
+
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
@@ -201,8 +184,8 @@ void Buffers::createBuffer_storageComputeParticles(glm::vec3 mass_center_pos, gl
     memcpy(data, particles.data(), (size_t)bufferSize);
     vkUnmapMemory(*pDevice, stagingBufferMemory);
 
-    buffer_storageComputeParticles.resize(MAX_FRAMES_IN_FLIGHT);
-    bufferMemory_storageComputeParticles.resize(MAX_FRAMES_IN_FLIGHT);
+    buffer_physics_particles.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_physics_particles.resize(MAX_FRAMES_IN_FLIGHT);
 
     // Copy initial particle data to all storage buffers
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -210,10 +193,14 @@ void Buffers::createBuffer_storageComputeParticles(glm::vec3 mass_center_pos, gl
             bufferSize, 
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
-            buffer_storageComputeParticles[i], 
-            bufferMemory_storageComputeParticles[i]);
-        copyBuffer(stagingBuffer, buffer_storageComputeParticles[i], bufferSize);
+            buffer_physics_particles[i],
+            bufferMemory_physics_particles[i]);
+
+        copyBuffer(stagingBuffer, buffer_physics_particles[i], bufferSize);
     }
+
+    //particle_ids.clear();
+    //particle_ids.shrink_to_fit();
 
     vkDestroyBuffer(*pDevice, stagingBuffer, nullptr);
     vkFreeMemory(*pDevice, stagingBufferMemory, nullptr);
@@ -262,6 +249,88 @@ void Buffers::createBuffer_uniformDeltaTime()
     }
 }
 
+void Buffers::createBuffer_physics_particles_constants()
+{
+    // maybe pre-define attractor params in physics.h?
+    StructParticleSystemParams particleParams;
+    particleParams.num_attractors = NUM_ATTRACTORS;
+    particleParams.grav_const = GRAV_CONST;
+    particleParams.particle_count = PARTICLE_COUNT;
+    particleParams.blob_r_min = BLOB_R_MIN;
+    particleParams.blob_r_max = BLOB_R_MAX;
+
+    VkDeviceSize bufferSize = sizeof(particleParams);
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(
+        bufferSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        stagingBuffer,
+        stagingBufferMemory);
+
+    void* data;
+    vkMapMemory(*pDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, &particleParams, (size_t)bufferSize);
+    vkUnmapMemory(*pDevice, stagingBufferMemory);
+
+    buffer_physics_constants.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_physics_constants.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBuffer(
+            bufferSize,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            buffer_physics_constants[i],
+            bufferMemory_physics_constants[i]);
+        copyBuffer(stagingBuffer, buffer_physics_constants[i], bufferSize);
+    }
+
+    vkDestroyBuffer(*pDevice, stagingBuffer, nullptr);
+    vkFreeMemory(*pDevice, stagingBufferMemory, nullptr);
+    //delete &particleParams;
+}
+
+void Buffers::createBuffer_physics_attractors(std::vector<float> masses, std::vector<float> radiuses, std::vector<float> densities, std::vector<glm::vec3> positions)
+{
+    VkDeviceSize bufferSize = sizeof(StructAttractor) * NUM_ATTRACTORS;
+    std::vector< StructAttractor> attractors;
+    attractors.reserve(NUM_ATTRACTORS);
+
+    for (size_t i = 0; i < NUM_ATTRACTORS; i++)
+    {
+        StructAttractor attractor;
+
+        attractor.mass      = masses[i];
+        attractor.radius    = radiuses[i];
+        attractor.density   = densities[i];
+        attractor.position  = positions[i];
+
+        attractors.push_back(attractor);
+    }
+
+    buffer_physics_attractors.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_physics_attractors.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMapped_physics_attractors.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBuffer(
+            bufferSize,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            buffer_physics_attractors[i],
+            bufferMemory_physics_attractors[i]
+        );
+
+        vkMapMemory(*pDevice, bufferMemory_physics_attractors[i], 0, bufferSize, 0, &bufferMapped_physics_attractors[i]);
+        memcpy(bufferMapped_physics_attractors[i], attractors.data(), (size_t)bufferSize);
+        vkUnmapMemory(*pDevice, bufferMemory_physics_attractors[i]);
+    }
+
+}
+
 void Buffers::clearBuffers1(){
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
     }
@@ -269,15 +338,17 @@ void Buffers::clearBuffers1(){
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroyBuffer(*pDevice, buffer_uniformMVP[i], nullptr);
         vkDestroyBuffer(*pDevice, buffer_storageTransformations[i], nullptr);
-        //vkDestroyBuffer(*pDevice, buffer_storageParticles[i], nullptr);
-        vkDestroyBuffer(*pDevice, buffer_storageComputeParticles[i], nullptr);
         vkDestroyBuffer(*pDevice, buffer_uniformDeltaTime[i], nullptr);
+        vkDestroyBuffer(*pDevice, buffer_physics_particles[i], nullptr);
+        vkDestroyBuffer(*pDevice, buffer_physics_attractors[i], nullptr);
+        vkDestroyBuffer(*pDevice, buffer_physics_constants[i], nullptr);
 
         vkFreeMemory(   *pDevice, bufferMemory_uniformMVP[i], nullptr);
         vkFreeMemory(   *pDevice, bufferMemory_storageTransformations[i], nullptr);
-        //vkFreeMemory(   *pDevice, bufferMemory_storageParticles[i], nullptr);
-        vkFreeMemory(   *pDevice, bufferMemory_storageComputeParticles[i], nullptr);
         vkFreeMemory(   *pDevice, bufferMemory_uniformDeltaTime[i], nullptr);
+        vkFreeMemory(   *pDevice, bufferMemory_physics_particles[i], nullptr);
+        vkFreeMemory(   *pDevice, bufferMemory_physics_constants[i], nullptr);
+        vkFreeMemory(   *pDevice, bufferMemory_physics_attractors[i], nullptr);
     }
 }
 

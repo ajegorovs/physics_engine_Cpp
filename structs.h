@@ -21,14 +21,16 @@
 #include <glm/gtx/euler_angles.hpp> 
 #include "glm/ext.hpp"
 
+#include "config.h"
+#include "physics.h"
 
-struct alignas(16) StructDeltaTime
+
+struct StructDeltaTime
 {
-    alignas(4) glm::float32 deltaTime;
-    alignas(4) glm::float32 massBig;
-    alignas(4) glm::float32 grav_const;
-    alignas(16) glm::vec3 grav_cetner;
+    glm::float32 deltaTime;
 };
+
+
 
 // #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES should deal with glm::X
 struct alignas(16) point3D {
@@ -36,11 +38,10 @@ struct alignas(16) point3D {
     alignas(16) glm::vec3 position;      // Offset: 16, Size: 12 + 4 padding
     alignas(16) glm::vec3 velocity;      // Offset: 32, Size: 12 + 4 padding
     alignas(16) glm::vec3 acceleration;  // Offset: 48, Size: 12 + 4 padding
-    alignas(4) glm::float32 mass;               // Offset: 64, Size: 4
-    alignas(4) glm::float32 damping;            // Offset: 68, Size: 4
-    // Add 4 bytes of padding to make the structure size a multiple of 16 bytes
-    // 
-    // these are used for vertex buffer.
+    alignas(4)  glm::float32 mass;               // Offset: 64, Size: 4
+    alignas(4)  glm::float32 damping;            // Offset: 68, Size: 4
+    alignas(4)  float group_id;            // Offset: 68, Size: 4
+
     static VkVertexInputBindingDescription getBindingDescription() {
         VkVertexInputBindingDescription bindingDescription{};
         bindingDescription.binding = 0; 
@@ -65,6 +66,8 @@ struct alignas(16) point3D {
         attributeDescriptions.push_back({ 4,0,VK_FORMAT_R32_SFLOAT,offsetof(point3D, mass) });
 
         attributeDescriptions.push_back({ 5,0,VK_FORMAT_R32_SFLOAT,offsetof(point3D, damping) });
+
+        attributeDescriptions.push_back({ 6,0,VK_FORMAT_R32_UINT,offsetof(point3D, group_id) });
 
         return attributeDescriptions;
     };

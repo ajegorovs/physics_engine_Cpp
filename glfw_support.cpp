@@ -1,5 +1,6 @@
 #include "glfw_support.h"
 #include "config.h"
+#include "physics.h"
 #include <string>
 #include <sstream>
 #include <iomanip>

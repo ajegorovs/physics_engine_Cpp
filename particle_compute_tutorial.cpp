@@ -1108,7 +1108,7 @@ private:
         }
     }
 
-    void updateUniformBuffer(uint32_t currentImage) {
+    void updateBufferMapped_uniformMVP(uint32_t currentImage) {
         UniformBufferObject ubo{};
         ubo.deltaTime = lastFrameTime * 2.0f;
 
@@ -1122,7 +1122,7 @@ private:
         // Compute submission        
         vkWaitForFences(device, 1, &computeInFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
-        updateUniformBuffer(currentFrame);
+        updateBufferMapped_uniformMVP(currentFrame);
 
         vkResetFences(device, 1, &computeInFlightFences[currentFrame]);
 

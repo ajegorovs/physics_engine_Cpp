@@ -18,13 +18,19 @@ public:
 
 	void createDSL_multi_MPV_TS_TRN(); // Swapchain->createDescriptorPool, createDS_multi_MPV_TS_TRN
 	void createDSL_uniformMVP();		// MVP only
-	void createDSL_1UC_2SC();			
+	void createDSL_1UC_4SC();
 
 	void createDS_multi_MPV_TS_TRN(std::vector<VkBuffer> uniformBuffers, std::vector<VkBuffer> storageBuffer, VkImageView textureImageView, VkSampler textureSampler);
 	void createDS_uniformMVP(std::vector<VkBuffer>& pUniformBuffer);
 
-	void createDS_1UC_2SC_1Time_2ParticleParams(std::vector<VkBuffer>& pUniformBuffer, std::vector<VkBuffer>& pStorageBuffer);
-		
+
+	void createDS_physics_compute(
+		std::vector<VkBuffer>& pUniformBuffer,  // deltaTime
+		std::vector<VkBuffer>& pStorageBuffer,  // constants
+		std::vector<VkBuffer>& pStorageBuffer2, // attractors
+		std::vector<VkBuffer>& pStorageBuffer3  // particle old/new
+	);
+
 	void cleanupDSL();
 	void cleanupDPool();
 
@@ -32,11 +38,11 @@ public:
 
 	VkDescriptorSetLayout descriptorSetLayout_multi_MPV_TS_TRN;
 	VkDescriptorSetLayout descriptorSetLayout_uniformMVP;
-	VkDescriptorSetLayout descriptorSetLayout_1UC_2SC;
+	VkDescriptorSetLayout descriptorSetLayout_1UC_4SC;
 
 	std::vector<VkDescriptorSet> descriptorSets_multi_MPV_TS_TRN;
 	std::vector<VkDescriptorSet> descriptorSets_uniformMVP;
-	std::vector<VkDescriptorSet> descriptorSets_1UC_2SC;
+	std::vector<VkDescriptorSet> descriptorSets_1UC_4SC;
 
 private:
 	VkDevice* pDevice;

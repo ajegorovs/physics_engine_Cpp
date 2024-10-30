@@ -24,20 +24,26 @@ Engine::Engine() :
 {
 }
 
-
-
 void Engine::run() 
 {
     //std::vector<glm::vec3> points = { {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.5f, 1.5f, 1.5f} };
     //glm::vec3 v(2.f, 2.f, 2.f);
     //MathGL::calculateSquaredDistanceUpperTriangleMatrix(points);
-    center = glm::vec3(0.0f, 0.0f, 0.0f);
-    center2 = glm::vec3(0.0f, 0.0f, 0.0f);
-    center_mass = glm::float32(20.0f);
-    center_mass2 = glm::float32(0.0f);
-    grav_const = glm::float32(1.0f);
+
     glm::vec3 reference_axis = glm::vec3(0, 0, 1);
-        
+
+    std::vector<float> masses;          //= { 20.0f };
+    std::vector<float> radiuses;        //= { 1.0f };
+    std::vector<float> densities;       //= { 1.0f };
+    std::vector<glm::vec3> positions;   //= { glm::vec3(0.0f, 0.0f, 0.0f) };
+    masses.push_back(20.0f);
+    masses.push_back(5.0f);
+    radiuses.push_back(1.0f);
+    radiuses.push_back(1.0f);
+    densities.push_back(1.0f);
+    densities.push_back(1.0f);
+    positions.push_back(glm::vec3(0.0f, -0.5f, 0.0f));
+    positions.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
     //std::cout << VkApplicationInfo::apiVersion() << std::endl;
     constexpr float pi = glm::pi<float>();
     std::vector<std::unique_ptr<geometric_shape>> scene;
@@ -60,11 +66,20 @@ void Engine::run()
 
     dscr.createDSL_uniformMVP();
     dscr.createDSL_multi_MPV_TS_TRN();
-    dscr.createDSL_1UC_2SC();
+    dscr.createDSL_1UC_4SC();
 
-    gfx.createGraphicsPipeline_storageVertices(&dscr.descriptorSetLayout_multi_MPV_TS_TRN, &swp.renderPass);                           // pipelineLayout, graphicsPipeline
-    gfx.createGraphicsPipeline_storageParticles(&dscr.descriptorSetLayout_uniformMVP, &swp.renderPass);                          // pipelineLayout, graphicsPipeline
-    cmpt.createComputePipeline_particle(&dscr.descriptorSetLayout_1UC_2SC);                          // pipelineLayout, graphicsPipeline
+    // ================ PIPELINES =====================
+    gfx.createGraphicsPipeline_storageVertices(
+        &dscr.descriptorSetLayout_multi_MPV_TS_TRN, 
+        &swp.renderPass
+    );                           
+    gfx.createGraphicsPipeline_storageParticles(
+        &dscr.descriptorSetLayout_uniformMVP, 
+        &swp.renderPass
+    );                          
+    cmpt.createComputePipeline_particle(
+        &dscr.descriptorSetLayout_1UC_4SC
+    );                          
 
     cmd.createCommandPool();                                                // commandPool
     swp.createColorResources();                                             // colorImageView
@@ -81,9 +96,18 @@ void Engine::run()
 
     bfr.createBuffer_uniformMVP();
     bfr.createBuffer_storageTransformations();
-    bfr.createBuffer_storageParticles(          center, center_mass, grav_const, reference_axis);                                    // will act as vertex buffer for particles
-    bfr.createBuffer_storageComputeParticles(   center, center_mass, grav_const, reference_axis);                                    // will act as vertex buffer for particles
+
+    // =============== Physics BUFFERS ===============
     bfr.createBuffer_uniformDeltaTime();
+    bfr.createBuffer_physics_particles_constants();
+    bfr.createBuffer_physics_attractors(
+        masses,
+        radiuses,
+        densities,
+        positions
+    );
+    bfr.createBuffer_physics_particles_compute();
+    //================================================
 
     dscr.createDescriptorPool();
 
@@ -92,15 +116,18 @@ void Engine::run()
         swp.textureImageView,   swp.textureSampler
     );
     dscr.createDS_uniformMVP(bfr.buffer_uniformMVP);
-    dscr.createDS_1UC_2SC_1Time_2ParticleParams(
-        bfr.buffer_uniformDeltaTime, 
-        bfr.buffer_storageComputeParticles
+    dscr.createDS_physics_compute(      // to descriptorSets_1UC_4SC
+        bfr.buffer_uniformDeltaTime,    // deltaTime
+        bfr.buffer_physics_constants,   // constants
+        bfr.buffer_physics_attractors,  // attractors
+        bfr.buffer_physics_particles    // particle old/new
     );
 
     cmd.createCommandBuffers();
     cmd.createComputeCommandBuffers();
     sync.createSyncObjects();
-    bool firstFrameCompleted = false; // second frame has anamolous frame time.
+    bool firstFramebufferCompleted = false; // second frame has anamolous frame time.
+    uint32_t starter_frame_counter = 0;
     double currentTime = 0.0f;
     lastTime = glfwGetTime();
     while (!glfwWindowShouldClose(glfw_s.window)) {
@@ -108,12 +135,18 @@ void Engine::run()
         drawFrame();
         currentTime = glfwGetTime();
 
-        if (firstFrameCompleted) {
+        // physics uses frame times and its busted for 1st framebuffer
+        // set frame times to 0 so physics is not advanced
+        // i also use it to detect initialization frames in compute shader.
+        if (firstFramebufferCompleted) {
             lastFrameTime = (currentTime - lastTime);// *1000.0;
         }
         else {
             lastFrameTime = 0.0f;
-            firstFrameCompleted = true; 
+            starter_frame_counter++;
+        }
+        if (!firstFramebufferCompleted && starter_frame_counter == MAX_FRAMES_IN_FLIGHT) {
+            firstFramebufferCompleted = true;
         }
 
         lastTime = currentTime;
@@ -216,64 +249,11 @@ void Engine::createInstance()
 void Engine::updateBufferMapped_uniformDeltaTime(uint32_t currentImage) {
     StructDeltaTime ubo{};
     ubo.deltaTime = lastFrameTime;
-    ubo.massBig = center_mass;
-    ubo.grav_const = grav_const;
-    ubo.grav_cetner = center;
-
     memcpy(bfr.bufferMapped_uniformDeltaTime[currentImage], &ubo, sizeof(ubo));
 }
 
-void Engine::updateBufferMapped_storageParticles(uint32_t currentFrame) {
 
-
-    int previousFrame = (currentFrame - 1) % MAX_FRAMES_IN_FLIGHT;
-    point3D* particles_prev = reinterpret_cast<point3D*>(bfr.bufferMapped_storageParticles[previousFrame]);
-    point3D* particles_crnt = reinterpret_cast<point3D*>(bfr.bufferMapped_storageParticles[currentFrame]);
-
-    //float length0 = glm::length(particles_prev[0].position);
-
-    //std::cout << "CF: " << currentFrame << " ; " << "PF: " << previousFrame << " ; " << lastFrameTime*1000 << "(ms), L(i-1) = " << length0;// << " " << particles_crnt[0].velocity << " " << particles_prev[0].velocity
-    for (size_t i = 0; i < PARTICLE_COUNT; i++) {
-        // Verlet integration https://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet
-        // Update pos using old data r_{t}
-        particles_crnt[i].position = particles_prev[i].position +
-            particles_prev[i].velocity * lastFrameTime +
-            0.5f * particles_prev[i].acceleration * lastFrameTime * lastFrameTime;
-
-        // Calculate new accel a(t+dt) = F_{t+dt}/m
-
-        glm::vec3 dir = center - particles_crnt[i].position;
-        glm::float32 distSquared = glm::dot(dir, dir);
-        glm::vec3 dir_normalized = glm::normalize(dir);
-
-        /*glm::vec3 dir2 = center2 - particles_crnt[i].position;
-        glm::float32 distSquared2 = glm::dot(dir2, dir2);
-        glm::vec3 dir_normalized2 = glm::normalize(dir2);*/
-
-        particles_crnt[i].acceleration = grav_const * (center_mass / distSquared * dir_normalized);// + center_mass2 / distSquared2 * dir_normalized2);
-
-        // Update velocity using average acceleration v_{t+dt}
-        particles_crnt[i].velocity = particles_prev[i].velocity +
-            0.5f * (particles_prev[i].acceleration + particles_crnt[i].acceleration) * lastFrameTime;
-
-
-        if (particles_crnt[i].position.x < -5.0f || particles_crnt[i].position.x > 5.0f){
-            particles_crnt[i].velocity.x *= -1;
-        }
-        if (particles_crnt[i].position.y < -5.0f || particles_crnt[i].position.y > 5.0f) {
-            particles_crnt[i].velocity.y *= -1;
-        }
-        if (particles_crnt[i].position.z < -5.0f || particles_crnt[i].position.z > 5.0f) {
-            particles_crnt[i].velocity.z *= -1;
-        }
-
-    }
-    //float length1 = glm::length(particles_crnt[1].position);
-    //std::cout <<"; L(i) = "<< length1 << std::endl;
-}
-
-
-void Engine::updateUniformBuffer(uint32_t currentImage) {
+void Engine::updateBufferMapped_uniformMVP(uint32_t currentImage) {
     static auto startTime = std::chrono::high_resolution_clock::now();
 
     auto currentTime = std::chrono::high_resolution_clock::now();
@@ -288,7 +268,7 @@ void Engine::updateUniformBuffer(uint32_t currentImage) {
     memcpy(bfr.bufferMapped_uniformMVP[currentImage], &ubo, sizeof(ubo));
 }
 
-void Engine::updateStorageBuffer(uint32_t currentImage) {
+void Engine::updateBufferMapped_storageTransformtions(uint32_t currentImage) {
     static auto startTime = std::chrono::high_resolution_clock::now();
 
     auto currentTime = std::chrono::high_resolution_clock::now();
@@ -358,7 +338,7 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
 
     // draw compute on gfx particle pipeline
 
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &bfr.buffer_storageComputeParticles[currentFrame], offsets);
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &bfr.buffer_physics_particles[currentFrame], offsets);
 
     vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_POINT_LIST);
 
@@ -401,7 +381,7 @@ void Engine::recordComputeCommandBuffer(VkCommandBuffer commandBuffer) {
 
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePipeline);
 
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePipelineLayout, 0, 1, &dscr.descriptorSets_1UC_2SC[currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePipelineLayout, 0, 1, &dscr.descriptorSets_1UC_4SC[currentFrame], 0, nullptr);
 
     vkCmdDispatch(commandBuffer, PARTICLE_COUNT / 256, 1, 1);
 
@@ -410,26 +390,6 @@ void Engine::recordComputeCommandBuffer(VkCommandBuffer commandBuffer) {
     }
 
 }
-
-//void Engine::recordComputeCommandBuffer(VkCommandBuffer commandBuffer)
-//{
-//    VkCommandBufferBeginInfo beginInfo{};
-//    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-//
-//    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
-//        throw std::runtime_error("failed to begin recording compute command buffer!");
-//    }
-//
-//    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, rndr.computePipeline);
-//
-//    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, rndr.computePipelineLayout, 0, 1, &swp.computeDescriptorSets[currentFrame], 0, nullptr);
-//
-//    vkCmdDispatch(commandBuffer, PARTICLE_COUNT / 256, 1, 1);
-//
-//    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-//        throw std::runtime_error("failed to record compute command buffer!");
-//    }
-//}
 
 void Engine::recreateSwapChain() {
     int width = 0, height = 0;
@@ -479,8 +439,8 @@ void Engine::drawFrame() {
 
     //updateBufferMapped_storageParticles(currentFrame);
 
-    updateStorageBuffer(currentFrame);
-    updateUniformBuffer(currentFrame);
+    updateBufferMapped_storageTransformtions(currentFrame);
+    updateBufferMapped_uniformMVP(currentFrame);
     
 
     uint32_t imageIndex;

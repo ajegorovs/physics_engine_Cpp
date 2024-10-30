@@ -1,5 +1,6 @@
 #version 450
 
+const float PI = 3.1415926535897932384626433832795;
 struct Particle {
 	vec4 color;
 	vec3 position;
@@ -7,20 +8,82 @@ struct Particle {
 	vec3 acceleration;
 	float mass;
 	float damping;
+	float group_id;
 };
 
-layout (binding = 0) uniform ParameterUBO {
-    float deltaTime;
-	float massBig;
-	float grav_const;
-	vec3 center_massBig;
-} ubo;
+struct Attractor {
+	float mass;
+	float radius;
+	float density;
+	vec3 position;
+};
 
-layout(std140, binding = 1) readonly buffer ParticleSSBOIn {
+highp float rand(float seed1, float seed2)
+{
+    highp float a = 12.9898;
+    highp float b = 78.233;
+    highp float c = 43758.5453;
+    highp float dt= dot(vec2(seed1,seed2), vec2(a,b));
+    highp float sn= mod(dt, 3.14);
+    return fract(sin(sn) * c);
+}
+
+vec3 randomGaussianVector(float u1, float u2) {
+    // Box-Muller transform
+    float r = sqrt(-2.0 * log(u1)); // Radius
+    float theta = 2.0 * PI * u2; // Angle
+
+    // Generate a vector in 3D using spherical coordinates
+    float x = r * cos(theta);
+    float y = r * sin(theta);
+    float z = sqrt(-2.0 * log(u1)); // Generate a height component for normal distribution
+
+    return vec3(x, y, z);
+}
+
+highp vec3 rollSphereCoords(float r_min, float r_max, vec3 rolls) {
+	
+	float r = (r_max - r_min) * rolls[0] + r_min;
+	float theta = PI * rolls[1];
+	float phi = 2 * PI * rolls[2];
+
+	return vec3(
+		r * sin(theta) * cos(phi),
+		r * sin(theta) * sin(phi),
+		r * cos(theta)
+	);
+}
+
+highp vec3 set_circular_orbit_velocity(vec3 mass_center_pos, float bigMass, vec3 particle_pos, float grav_const, vec3 reference_axis) {
+	vec3 d = mass_center_pos - particle_pos;
+	float dist = length(d);
+	vec3 vel_dir = normalize(cross(d, reference_axis));
+	vec3 orbital_vel = vel_dir * sqrt(bigMass * grav_const / (dist + 0.000001f));
+
+	return orbital_vel;
+}
+
+layout (binding = 0) uniform ParameterTime {
+    float deltaTime;
+} time;
+
+layout(std140, binding = 1) readonly buffer ConstantsSSBO {
+   float num_attractors;
+   float grav_const;
+   uint particle_count;
+   float blob_r_min;
+   float blob_r_max;
+} system;
+
+layout(std140, binding = 2) readonly buffer AttractorSSBO {
+   Attractor attractors[ ];
+};
+
+layout(std140, binding = 3) readonly buffer ParticleSSBOIn {
    Particle particlesIn[ ];
 };
 
-layout(std140, binding = 2) buffer ParticleSSBOOut {
+layout(std140, binding = 4) buffer ParticleSSBOOut {
    Particle particlesOut[ ];
 };
 
@@ -31,26 +94,63 @@ void main()
     uint index = gl_GlobalInvocationID.x;  
 	
     Particle particleIn = particlesIn[index];
-    
-	particlesOut[index].position = particleIn.position + particleIn.velocity * ubo.deltaTime + 0.5f * particleIn.acceleration * ubo.deltaTime * ubo.deltaTime;
-
-	vec3 dir = ubo.center_massBig - particlesOut[index].position;
-    float distSquared = dot(dir, dir);
-    vec3 dir_normalized = normalize(dir);
-
-    particlesOut[index].acceleration = ubo.grav_const * ubo.massBig / distSquared * dir_normalized;
-
-    particlesOut[index].velocity = particleIn.velocity + 0.5f * (particleIn.acceleration + particlesOut[index].acceleration) * ubo.deltaTime;
-
-
-    if ((particlesOut[index].position.x <= -13.0) || (particlesOut[index].position.x >= 13.0)) {
-        particlesOut[index].velocity.x = -particlesOut[index].velocity.x;
-    }
-    if ((particlesOut[index].position.y <= -13.0) || (particlesOut[index].position.y >= 13.0)) {
-        particlesOut[index].velocity.y = -particlesOut[index].velocity.y;
-    }
-	if ((particlesOut[index].position.z <= -13.0) || (particlesOut[index].position.z >= 13.0)) {
-        particlesOut[index].velocity.z = -particlesOut[index].velocity.z;
-    }
+    	
+	if (time.deltaTime > 0.0f)
+	{
+		particlesOut[index].position = particleIn.position + particleIn.velocity * time.deltaTime + 0.5f * particleIn.acceleration * time.deltaTime * time.deltaTime;
+	
+		particlesOut[index].acceleration  = vec3(0.0f);
+	
+		for (int i = 0; i < system.num_attractors; i++){
+			Attractor attractor = attractors[i];
+		
+			vec3 dir = attractor.position - particlesOut[index].position;
+			float distSquared = dot(dir, dir);
+			vec3 dir_normalized = normalize(dir);
+			
+			particlesOut[index].acceleration += system.grav_const * attractor.mass / distSquared * dir_normalized;
+	
+		}
+	
+		particlesOut[index].velocity = particleIn.velocity + 0.5f * (particleIn.acceleration + particlesOut[index].acceleration) * time.deltaTime;
+		
+		if ((particlesOut[index].position.x <= -13.0) || (particlesOut[index].position.x >= 13.0)) {
+			particlesOut[index].velocity.x = -particlesOut[index].velocity.x;
+		}
+		if ((particlesOut[index].position.y <= -13.0) || (particlesOut[index].position.y >= 13.0)) {
+			particlesOut[index].velocity.y = -particlesOut[index].velocity.y;
+		}
+		if ((particlesOut[index].position.z <= -13.0) || (particlesOut[index].position.z >= 13.0)) {
+			particlesOut[index].velocity.z = -particlesOut[index].velocity.z;
+		}
+	
+	} else 	// dt = 0 for 1st frame since its first. I set dt = 0 for second frame because it has anamolous dt. 
+	{		// but this can be a good trigger for initialization. 
+	
+		float g_id = particlesOut[index].group_id;
+		// same rolls within group.
+		vec3 rolls = vec3( rand(g_id, 3.13311), rand(g_id, 1.13341),rand(g_id, 0.15311));
+		
+		// >>> casting uint to float might not be good idea <<<
+		// perturb coornates
+		vec3 dr = 0.005*(system.blob_r_max- system.blob_r_min)*randomGaussianVector(rand(index, 1.13331), rand(index, 3.13341));
+		particlesOut[index].position 		= rollSphereCoords(system.blob_r_min, system.blob_r_max, rolls) + dr;
+		
+		vec4 color = vec4( rolls[0], rolls[1], rolls[2], 0.1f);
+		particlesOut[index].color 	= color;
+		
+		Attractor attractor0 = attractors[0];	// for particle circular orbit center
+		
+		particlesOut[index].velocity = set_circular_orbit_velocity(
+		attractor0.position, 
+		attractor0.mass, 
+		particlesOut[index].position, 
+		system.grav_const, 
+		vec3(0.0f,0.0f,1.0f)
+		);
+		
+		particlesOut[index].acceleration = vec3(0.0f, 0.0f, 0.0f);
+	}
+	
 
 }
