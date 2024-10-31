@@ -74,10 +74,35 @@ struct alignas(16) point3D {
 
 };
 
-struct LineSegment3D
-{
-    glm::vec3 p1;
-    glm::vec3 p2;
+struct StructLineSegment3D
+{   // 
+    alignas(16) glm::vec3 position1;
+    alignas(16) glm::vec3 position2;
+    alignas(16) glm::vec4 color1;
+    alignas(16) glm::vec4 color2;
+
+    static VkVertexInputBindingDescription getBindingDescription() {
+        VkVertexInputBindingDescription bindingDescription{};
+        bindingDescription.binding = 0;
+        bindingDescription.stride = sizeof(StructLineSegment3D);
+        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+        return bindingDescription;
+    }
+
+    static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
+        std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
+
+        attributeDescriptions.push_back({ 0,0,VK_FORMAT_R32G32B32_SFLOAT,offsetof(StructLineSegment3D, position1) });
+
+        attributeDescriptions.push_back({ 1,0,VK_FORMAT_R32G32B32_SFLOAT,offsetof(StructLineSegment3D, position2) });
+
+        attributeDescriptions.push_back({ 2,0,VK_FORMAT_R32G32B32A32_SFLOAT,offsetof(StructLineSegment3D, color1) });
+
+        attributeDescriptions.push_back({ 3,0,VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(StructLineSegment3D, color2) });
+
+        return attributeDescriptions;
+    };
 
 };
 
@@ -96,9 +121,33 @@ struct SwapChainSupportDetails {
     std::vector<VkPresentModeKHR> presentModes;
 };
 
-struct Vertex {
+
+struct VertexBase {
     alignas(16) glm::vec3 pos;
     alignas(16) glm::vec3 color;
+
+    static VkVertexInputBindingDescription getBindingDescription() {
+        VkVertexInputBindingDescription bindingDescription{};
+        bindingDescription.binding = 0;
+        bindingDescription.stride = sizeof(VertexBase);
+        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+        return bindingDescription;
+    }
+
+    static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
+        std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
+
+        // Populate the vector with attribute descriptions
+        attributeDescriptions.push_back({ 0,0,VK_FORMAT_R32G32B32_SFLOAT,offsetof(VertexBase, pos) });
+
+        attributeDescriptions.push_back({ 1,0,VK_FORMAT_R32G32B32_SFLOAT,offsetof(VertexBase, color) });
+
+        return attributeDescriptions;
+    };
+};
+
+struct Vertex : public VertexBase{
     alignas(8) glm::vec2 texCoord;
     alignas(4) glm::float32 hasTex;
     alignas(4) glm::float32 objID;
@@ -113,19 +162,16 @@ struct Vertex {
     }
 
     static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
-        std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
+        std::vector<VkVertexInputAttributeDescription> attributeDescriptions = VertexBase::getAttributeDescriptions();
+        uint32_t binding = 0;
+        uint32_t index = static_cast<uint32_t>(attributeDescriptions.size());
+        std::vector<uint32_t> offsets = { offsetof(Vertex, texCoord), offsetof(Vertex, hasTex), offsetof(Vertex, objID) };
+        std::vector <VkFormat> formats = { VK_FORMAT_R32G32_SFLOAT , VK_FORMAT_R32_SFLOAT , VK_FORMAT_R32_SFLOAT };
+        for (uint32_t i = 0; i < offsets.size(); i++) {
+            attributeDescriptions.push_back({ index + i, binding, formats[i], offsets[i] });
+        }
 
-        // Populate the vector with attribute descriptions
-        attributeDescriptions.push_back({ 0,0,VK_FORMAT_R32G32B32_SFLOAT,offsetof(Vertex, pos) });
-     
-        attributeDescriptions.push_back({ 1,0,VK_FORMAT_R32G32B32_SFLOAT,offsetof(Vertex, color) });
 
-        attributeDescriptions.push_back({ 2,0,VK_FORMAT_R32G32_SFLOAT,offsetof(Vertex, texCoord) });
-
-        attributeDescriptions.push_back({ 3,0,VK_FORMAT_R32_SFLOAT,offsetof(Vertex, hasTex) });
-   
-        attributeDescriptions.push_back({ 4,0,VK_FORMAT_R32_SFLOAT,offsetof(Vertex, objID) });
-           
         return attributeDescriptions;
     };
 
@@ -133,6 +179,7 @@ struct Vertex {
         return pos == other.pos && color == other.color && texCoord == other.texCoord && hasTex == other.hasTex;
     }
 };
+
 
 namespace std {
     template<> struct hash<Vertex> {

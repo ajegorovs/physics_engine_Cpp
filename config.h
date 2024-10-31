@@ -1,5 +1,5 @@
 #pragma once
-
+#define GLM_FORCE_CXX17
 #include <iostream>
 #include <vector>
 
@@ -9,6 +9,7 @@ const uint32_t HEIGHT = 600;
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
+const bool ENABLE_PHYSICS = false;
 
 
 const std::string MODEL_PATH = "models/viking_room.obj";

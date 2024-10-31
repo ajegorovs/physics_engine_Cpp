@@ -23,7 +23,7 @@ void Buffers::processScene(const std::vector<std::unique_ptr<geometric_shape>>& 
             glm::vec4 coord = shape->vertices[i];
             glm::vec3 color = shape->colors[i];
             //std::cout << glm::to_string(coord) << std::endl;
-            Vertex vertex{ {coord.x,coord.y,coord.z}, {color.x,color.y,color.z}, {0.0f, 0.0f}, 0.0f,  id };
+            Vertex vertex{ glm::vec3(coord.x,coord.y,coord.z), glm::vec3(color.x,color.y,color.z), glm::vec2(0.0f, 0.0f), 0.0f, id };
             vertices.push_back(vertex);
 
         }
@@ -42,6 +42,43 @@ void Buffers::processScene(const std::vector<std::unique_ptr<geometric_shape>>& 
         id++;
 
     }
+}
+
+void Buffers::processGrid()
+{
+    
+    glm::vec3 P1(-3.0f, -3.0f, 0.0f);
+    glm::vec3 P2( 3.0f,  3.0f, 0.0f);
+    glm::vec3 dims = (P2 - P1);
+
+    int num_h_lines = 8;
+    int num_v_lines = 8;
+
+    glm::vec2 dr = glm::vec2(dims[0] / num_v_lines, dims[1] / num_h_lines);
+
+    glm::vec3 clr(0.0f, 1.0f, 0.0f);
+
+    for (size_t i = 0; i <= num_h_lines; i++) { // + 1 line <=
+
+        VertexBase p1{ glm::vec3(0      , i * dr.y, 0) + P1, clr};
+        VertexBase p2{ glm::vec3(dims.x , i * dr.y, 0) + P1, clr};
+
+        line_vertices.push_back(p1);
+        line_vertices.push_back(p2);
+
+    }
+
+    for (size_t i = 0; i <= num_v_lines; i++) {
+
+        VertexBase p1{ glm::vec3(i * dr.x , 0     ,  0) + P1, clr };
+        VertexBase p2{ glm::vec3(i * dr.x , dims.y,  0) + P1, clr };
+
+        line_vertices.push_back(p1);
+        line_vertices.push_back(p2);
+
+    }
+
+
 }
 
 // non-local: createTextureImage, 
@@ -109,6 +146,27 @@ void Buffers::createVertexBuffer() {
     vkFreeMemory(*pDevice, stagingBufferMemory, nullptr);
 }
 
+void Buffers::createBuffer_line()
+{
+    VkDeviceSize bufferSize = sizeof(line_vertices[0]) * line_vertices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+    void* data;
+    vkMapMemory(*pDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, line_vertices.data(), (size_t)bufferSize);
+    vkUnmapMemory(*pDevice, stagingBufferMemory);
+
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer_lines, bufferMemory_lines);
+
+    copyBuffer(stagingBuffer, buffer_lines, bufferSize);
+
+    vkDestroyBuffer(*pDevice, stagingBuffer, nullptr);
+    vkFreeMemory(*pDevice, stagingBufferMemory, nullptr);
+}
+
 void Buffers::createIndexBuffer() {
     // CPU (host) does not have access to GPU (device, local) memory. Its "invisible". 
     // staging buffer is "host-visible" so it can act as inermediate stage.
@@ -159,9 +217,9 @@ void Buffers::createBuffer_physics_particles_compute()
 {
     std::vector<point3D> particles(PARTICLE_COUNT);
 
-    std::vector<uint32_t> particle_ids = Particles::getParticleGroupsIDs();
+    std::vector<float> particle_ids = Particles::getParticleGroupsIDs();
 
-    for (size_t i = 0; i < PARTICLE_COUNT; i++)
+    for (uint32_t i = 0; i < PARTICLE_COUNT; i++)
     {
         particles[i].group_id = particle_ids[i];
 
@@ -338,24 +396,29 @@ void Buffers::clearBuffers1(){
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroyBuffer(*pDevice, buffer_uniformMVP[i], nullptr);
         vkDestroyBuffer(*pDevice, buffer_storageTransformations[i], nullptr);
-        vkDestroyBuffer(*pDevice, buffer_uniformDeltaTime[i], nullptr);
-        vkDestroyBuffer(*pDevice, buffer_physics_particles[i], nullptr);
-        vkDestroyBuffer(*pDevice, buffer_physics_attractors[i], nullptr);
-        vkDestroyBuffer(*pDevice, buffer_physics_constants[i], nullptr);
-
         vkFreeMemory(   *pDevice, bufferMemory_uniformMVP[i], nullptr);
         vkFreeMemory(   *pDevice, bufferMemory_storageTransformations[i], nullptr);
-        vkFreeMemory(   *pDevice, bufferMemory_uniformDeltaTime[i], nullptr);
-        vkFreeMemory(   *pDevice, bufferMemory_physics_particles[i], nullptr);
-        vkFreeMemory(   *pDevice, bufferMemory_physics_constants[i], nullptr);
-        vkFreeMemory(   *pDevice, bufferMemory_physics_attractors[i], nullptr);
+
+        if (ENABLE_PHYSICS) {
+            vkDestroyBuffer(*pDevice, buffer_uniformDeltaTime[i], nullptr);
+            vkDestroyBuffer(*pDevice, buffer_physics_particles[i], nullptr);
+            vkDestroyBuffer(*pDevice, buffer_physics_attractors[i], nullptr);
+            vkDestroyBuffer(*pDevice, buffer_physics_constants[i], nullptr);
+
+            vkFreeMemory(*pDevice, bufferMemory_uniformDeltaTime[i], nullptr);
+            vkFreeMemory(*pDevice, bufferMemory_physics_particles[i], nullptr);
+            vkFreeMemory(*pDevice, bufferMemory_physics_constants[i], nullptr);
+            vkFreeMemory(*pDevice, bufferMemory_physics_attractors[i], nullptr);
+        }
     }
 }
 
 void Buffers::clearBuffers2(){
     vkDestroyBuffer(*pDevice, indexBuffer, nullptr);
     vkDestroyBuffer(*pDevice, vertexBuffer, nullptr);
+    vkDestroyBuffer(*pDevice, buffer_lines, nullptr);
     vkFreeMemory(   *pDevice, indexBufferMemory, nullptr);
     vkFreeMemory(   *pDevice, vertexBufferMemory, nullptr);
+    vkFreeMemory(   *pDevice, bufferMemory_lines, nullptr);
 }
 

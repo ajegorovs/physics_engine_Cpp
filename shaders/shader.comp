@@ -114,13 +114,13 @@ void main()
 	
 		particlesOut[index].velocity = particleIn.velocity + 0.5f * (particleIn.acceleration + particlesOut[index].acceleration) * time.deltaTime;
 		
-		if ((particlesOut[index].position.x <= -13.0) || (particlesOut[index].position.x >= 13.0)) {
+		if ((particlesOut[index].position.x <= -143.0) || (particlesOut[index].position.x >= 143.0)) {
 			particlesOut[index].velocity.x = -particlesOut[index].velocity.x;
 		}
-		if ((particlesOut[index].position.y <= -13.0) || (particlesOut[index].position.y >= 13.0)) {
+		if ((particlesOut[index].position.y <= -143.0) || (particlesOut[index].position.y >= 143.0)) {
 			particlesOut[index].velocity.y = -particlesOut[index].velocity.y;
 		}
-		if ((particlesOut[index].position.z <= -13.0) || (particlesOut[index].position.z >= 13.0)) {
+		if ((particlesOut[index].position.z <= -143.0) || (particlesOut[index].position.z >= 143.0)) {
 			particlesOut[index].velocity.z = -particlesOut[index].velocity.z;
 		}
 	

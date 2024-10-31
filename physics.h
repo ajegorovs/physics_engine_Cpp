@@ -49,5 +49,5 @@ public:
 
 class Particles {
 public:
-	static std::vector<uint32_t> getParticleGroupsIDs();
+	static std::vector<float> getParticleGroupsIDs();
 };

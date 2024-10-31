@@ -25,6 +25,20 @@ void Graphics::createGraphicsPipeline_storageVertices(VkDescriptorSetLayout* pDe
         pRenderPass);
 }
 
+void Graphics::createGraphicsPipeline_storageLines(VkDescriptorSetLayout* pDescriptorSetLayout, VkRenderPass* pRenderPass)
+{
+    createGraphicsPipeline(
+        &graphicsPipeline_lines,
+        VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
+        &pipelineLayout_lines,
+        pDescriptorSetLayout,
+        "shaders/vert_Line3D.spv",
+        "shaders/frag_Line3D.spv",
+        VertexBase::getBindingDescription(),
+        VertexBase::getAttributeDescriptions(),
+        pRenderPass);
+}
+
 void Graphics::createGraphicsPipeline_storageParticles(VkDescriptorSetLayout* pDescriptorSetLayout, VkRenderPass* pRenderPass)
 {
     createGraphicsPipeline(
@@ -171,7 +185,9 @@ void Graphics::cleanup()
 {
     vkDestroyPipeline(*pDevice, graphicsPipeline, nullptr);
     vkDestroyPipeline(*pDevice, graphicsPipeline_particles, nullptr);
+    vkDestroyPipeline(*pDevice, graphicsPipeline_lines, nullptr);
 
     vkDestroyPipelineLayout(*pDevice, pipelineLayout, nullptr);
     vkDestroyPipelineLayout(*pDevice, pipelineLayout_particles, nullptr);
+    vkDestroyPipelineLayout(*pDevice, pipelineLayout_lines, nullptr);
 }

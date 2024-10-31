@@ -1,17 +1,17 @@
 #include "physics.h"
 
-std::vector<uint32_t> Particles::getParticleGroupsIDs()
+std::vector<float> Particles::getParticleGroupsIDs()
 {
-	std::vector<uint32_t> ids;
+	std::vector<float> ids;
 	ids.reserve(PARTICLE_COUNT);
 	uint32_t group_size = PARTICLE_COUNT / PARTICLE_GROUPS;
 
 	// fill full groups UP TO last group
-	for (size_t i = 0; i < PARTICLE_GROUPS - 1; i++) {
+	for (uint32_t i = 0; i < PARTICLE_GROUPS - 1; i++) {
 		ids.insert(ids.end(), group_size, i); // Insert group_size instances of i
 	}
 	// fill last group with extras
-	uint32_t missing_elems_num = PARTICLE_COUNT - ids.size();
+	uint32_t missing_elems_num = PARTICLE_COUNT - static_cast<uint32_t>(ids.size());
 	ids.insert(ids.end(), missing_elems_num, PARTICLE_GROUPS - 1);
 	return ids;
 }

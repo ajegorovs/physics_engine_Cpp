@@ -16,6 +16,8 @@ public:
 	VkQueue* graphicsQueue;
 	std::vector<Vertex> vertices;
 	std::vector<uint32_t> indices;
+	std::vector<VertexBase> line_vertices;
+	VkBuffer buffer_lines;
 	std::vector<VkBuffer> buffer_storageTransformations;
 	std::vector<VkBuffer> buffer_uniformMVP;
 	std::vector<VkBuffer> buffer_uniformDeltaTime;
@@ -27,7 +29,9 @@ public:
 	Buffers(VkDevice * pDevice, VkPhysicalDevice* physicalDevice, VkCommandPool* commandPool, VkQueue* graphicsQueue);
 	static void createBuffer(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 	void processScene(const std::vector<std::unique_ptr<geometric_shape>>& pScene);
+	void processGrid();
 	void createVertexBuffer();
+	void createBuffer_line();
 	void createIndexBuffer();
 
 	void createBuffer_storageTransformations();
@@ -62,6 +66,8 @@ private:
 	std::vector<VkDeviceMemory> bufferMemory_physics_particles;
 	std::vector<VkDeviceMemory> bufferMemory_physics_constants;
 	std::vector<VkDeviceMemory> bufferMemory_physics_attractors;
+
+	VkDeviceMemory bufferMemory_lines;
 	VkDeviceMemory vertexBufferMemory;
 	VkDeviceMemory indexBufferMemory;
 
