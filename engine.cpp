@@ -3,6 +3,7 @@
 #include "glfw_support.h"
 #include "shapes.h"
 #include "physics.h"
+#include "misc.h"
 #include <stdexcept>
 #include <cstdint>
 #include <memory>
@@ -29,10 +30,15 @@ void Engine::run()
     //std::vector<glm::vec3> points = { {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.5f, 1.5f, 1.5f} };
     //glm::vec3 v(2.f, 2.f, 2.f);
     //MathGL::calculateSquaredDistanceUpperTriangleMatrix(points);
+
+
     std::vector<float> masses;          //= { 20.0f };
     std::vector<float> radiuses;        //= { 1.0f };
     std::vector<float> densities;       //= { 1.0f };
     std::vector<glm::vec3> positions;   //= { glm::vec3(0.0f, 0.0f, 0.0f) };
+
+    std::vector<std::array<float, 3>> poits2d =  Misc::seedUniformPoints2D(30 * 30);
+    std::vector<std::array<float, 3>> poits2dSorted = Misc::sortByMorton(poits2d);
     if (ENABLE_PHYSICS) {
         masses.push_back(20.0f);
         masses.push_back(4.0f);
@@ -94,7 +100,9 @@ void Engine::run()
     swp.createTextureSampler();                                             //
 
     bfr.processScene(scene);                                                // yeet vertices, indices and IDs into pre-buffers
-    bfr.processGrid();
+    //bfr.processGrid();
+    bfr.processMortonLines(poits2d      , glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(-1.5f, 0.2f, 0.0f));
+    bfr.processMortonLines(poits2dSorted, glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(-1.5f, -3.2f, 0.0f));
     bfr.createVertexBuffer();
     bfr.createIndexBuffer();
     bfr.createBuffer_line();
@@ -225,7 +233,7 @@ void Engine::updateBufferMapped_uniformMVP(uint32_t currentImage) {
 
     StructMVP ubo{};
     ubo.model = glm::rotate(glm::mat4(1.0f), 0.0f*0.5f * time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.view = glm::lookAt(glm::vec3(4.0f, 4.0f, 4.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(glm::vec3(1.0f, 0.0f, 8.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), swp.swapChainExtent.width / (float)swp.swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
 

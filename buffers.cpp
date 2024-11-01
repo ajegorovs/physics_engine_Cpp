@@ -46,7 +46,6 @@ void Buffers::processScene(const std::vector<std::unique_ptr<geometric_shape>>& 
 
 void Buffers::processGrid()
 {
-    
     glm::vec3 P1(-3.0f, -3.0f, 0.0f);
     glm::vec3 P2( 3.0f,  3.0f, 0.0f);
     glm::vec3 dims = (P2 - P1);
@@ -78,6 +77,23 @@ void Buffers::processGrid()
 
     }
 
+
+}
+
+void Buffers::processMortonLines(std::vector<std::array<float, 3>> points, glm::vec3 color, glm::vec3 offset)
+{
+    
+    int N = points.size();
+    for (size_t i = 0; i < N - 1; i++)
+    {
+        std::array<float, 3> c = points[i];
+        std::array<float, 3> g = points[i+1];
+        VertexBase p1{ 3.0f * glm::vec3(c[0], c[1], c[2])+offset, color };
+        VertexBase p2{ 3.0f * glm::vec3(g[0], g[1], g[2])+offset, color };
+
+        line_vertices.push_back(p1);
+        line_vertices.push_back(p2);
+    }
 
 }
 
