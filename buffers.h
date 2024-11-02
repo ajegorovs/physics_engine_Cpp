@@ -25,9 +25,45 @@ public:
 	std::vector<VkBuffer> buffer_physics_attractors;
 	std::vector<VkBuffer> buffer_physics_constants;
 
+	VkBuffer buffer_lbvh_elements;
+	VkBuffer buffer_lbvh_mortonCode;
+	VkBuffer buffer_lbvh_mortonCodePingPong;
+	VkBuffer buffer_lbvh_LBVH;
+	VkBuffer buffer_lbvh_LBVHConstructionInfo;
+
 	Buffers();
 	Buffers(VkDevice * pDevice, VkPhysicalDevice* physicalDevice, VkCommandPool* commandPool, VkQueue* graphicsQueue);
 	static void createBuffer(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+	void createBufferDeviceLocalData(
+		VkDeviceSize size,
+		VkBufferUsageFlags usage,
+		std::vector<VkBuffer>& buffer,
+		std::vector<VkDeviceMemory>& bufferMemory,
+		const void* ptr
+	);
+
+	void createBufferDeviceLocalData(
+		VkDeviceSize size,
+		VkBufferUsageFlags usage,
+		std::vector<VkBuffer>& buffer,
+		std::vector<VkDeviceMemory>& bufferMemory
+	);
+
+	void createBufferDeviceLocalData(
+		VkDeviceSize size,
+		VkBufferUsageFlags usage,
+		VkBuffer& buffer,
+		VkDeviceMemory& bufferMemory,
+		const void* ptr
+	);
+
+	void createBufferDeviceLocalData(
+		VkDeviceSize size,
+		VkBufferUsageFlags usage,
+		VkBuffer& buffer,
+		VkDeviceMemory& bufferMemory
+	);
+
 	void processScene(const std::vector<std::unique_ptr<geometric_shape>>& pScene);
 	void processGrid();
 	void processMortonLines(std::vector<std::array<float, 3>> points, glm::vec3 color, glm::vec3 offset);
@@ -38,6 +74,12 @@ public:
 	void createBuffer_storageTransformations();
 	//void createBuffer_storageParticles(glm::vec3 mass_center_pos, glm::float32 bigMass, glm::float32 grav_const, glm::vec3 reference_axis);
 	void createBuffer_uniformMVP();
+
+	void createBuffer_lbvh_elementsBuffer(std::vector<std::array<float, 3>> poits2d);
+	void createBuffer_lbvh_mortonCode();
+	void createBuffer_lbvh_mortonCodePingPong();
+	void createBuffer_lbvh_LBVH();
+	void createBuffer_lbvh_LBVHConstructionInfo();
 
 	void createBuffer_uniformDeltaTime();
 	void createBuffer_physics_particles_compute();
@@ -67,6 +109,12 @@ private:
 	std::vector<VkDeviceMemory> bufferMemory_physics_particles;
 	std::vector<VkDeviceMemory> bufferMemory_physics_constants;
 	std::vector<VkDeviceMemory> bufferMemory_physics_attractors;
+
+	VkDeviceMemory bufferMemory_lbvh_elements;
+	VkDeviceMemory bufferMemory_lbvh_mortonCode;
+	VkDeviceMemory bufferMemory_lbvh_mortonCodePingPong;
+	VkDeviceMemory bufferMemory_lbvh_LBVH;
+	VkDeviceMemory bufferMemory_lbvh_LBVHConstructionInfo;
 
 	VkDeviceMemory bufferMemory_lines;
 	VkDeviceMemory vertexBufferMemory;

@@ -200,3 +200,66 @@ struct StructObjectTransformations {
     std::array<glm::mat4, 10> model;
 };
 
+
+#define INVALID_POINTER 0x0
+
+// input for the builder (normally a triangle or some other kind of primitive); it is necessary to allocate the buffer on the GPU
+// and to upload the input data
+struct Element {
+    uint32_t primitiveIdx; // the id of the primitive; this primitive id is copied to the leaf nodes of the BVH (LBVHNode)
+    float aabbMinX;        // aabb of the primitive
+    float aabbMinY;
+    float aabbMinZ;
+    float aabbMaxX;
+    float aabbMaxY;
+    float aabbMaxZ;
+};
+
+// output of the builder; it is necessary to allocate the (empty) buffer on the GPU
+struct LBVHNode {
+    int32_t left;          // pointer to the left child or INVALID_POINTER in case of leaf
+    int32_t right;         // pointer to the right child or INVALID_POINTER in case of leaf
+    uint32_t primitiveIdx; // custom value that is copied from the input Element or 0 in case of inner node
+    float aabbMinX;        // aabb of the node
+    float aabbMinY;
+    float aabbMinZ;
+    float aabbMaxX;
+    float aabbMaxY;
+    float aabbMaxZ;
+};
+
+// only used on the GPU side during construction; it is necessary to allocate the (empty) buffer on the GPU
+struct MortonCodeElement {
+    uint32_t mortonCode; // key for sorting
+    uint32_t elementIdx; // pointer into element buffer
+};
+
+// only used on the GPU side during construction; it is necessary to allocate the (empty) buffer on the GPU
+struct LBVHConstructionInfo {
+    uint32_t parent;         // pointer to the parent
+    int32_t visitationCount; // number of threads that arrived
+};
+
+struct PushConstantsMortonCodes {
+    uint32_t g_num_elements; // = NUM_ELEMENTS
+    float g_min_x; // (*)
+    float g_min_y;
+    float g_min_z;
+    float g_max_x;
+    float g_max_y;
+    float g_max_z;
+};
+
+struct PushConstantsRadixSort {
+    uint32_t g_num_elements; // = NUM_ELEMENTS
+};
+
+struct PushConstantsHierarchy {
+    uint32_t g_num_elements; // = NUM_ELEMENTS
+    uint32_t g_absolute_pointers; // 1 or 0 (**)
+};
+
+struct PushConstantsBoundingBoxes {
+    uint32_t g_num_elements; // = NUM_ELEMENTS
+    uint32_t g_absolute_pointers; // 1 or 0 (**)
+};

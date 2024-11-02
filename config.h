@@ -9,7 +9,12 @@ const uint32_t HEIGHT = 600;
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
-const bool ENABLE_PHYSICS = false;
+const bool ENABLE_PHYSICS = true;
+const bool ENABLE_COMPUTE = true;;
+const bool ENABLE_LVBH = true;;
+const uint32_t NUM_ELEMENTS = 30*30;
+const uint32_t NUM_LBVH_ELEMENTS = 30*30-1;
+
 
 
 const std::string MODEL_PATH = "models/viking_room.obj";

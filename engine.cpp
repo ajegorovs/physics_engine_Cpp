@@ -37,7 +37,7 @@ void Engine::run()
     std::vector<float> densities;       //= { 1.0f };
     std::vector<glm::vec3> positions;   //= { glm::vec3(0.0f, 0.0f, 0.0f) };
 
-    std::vector<std::array<float, 3>> poits2d =  Misc::seedUniformPoints2D(30 * 30);
+    std::vector<std::array<float, 3>> poits2d =  Misc::seedUniformPoints2D(NUM_ELEMENTS);
     std::vector<std::array<float, 3>> poits2dSorted = Misc::sortByMorton(poits2d);
     if (ENABLE_PHYSICS) {
         masses.push_back(20.0f);
@@ -70,9 +70,13 @@ void Engine::run()
 
     dscr.createDSL_uniformMVP();
     dscr.createDSL_multi_MPV_TS_TRN();
-    if (ENABLE_PHYSICS) {
+    if (ENABLE_COMPUTE) {
         dscr.createDSL_1UC_4SC();
     }
+    if (ENABLE_LVBH) {
+        dscr.createDSL_lbvh();
+    }
+
     // ================ PIPELINES =====================
     gfx.createGraphicsPipeline_storageVertices(     // pipelineLayout, graphicsPipeline
         &dscr.descriptorSetLayout_multi_MPV_TS_TRN, 
@@ -86,10 +90,13 @@ void Engine::run()
         &dscr.descriptorSetLayout_uniformMVP, 
         &swp.renderPass
     );   
-    if (ENABLE_PHYSICS) {
+    if (ENABLE_COMPUTE) {
         cmpt.createComputePipeline_particle(        // computePipelineLayout, computePipeline
             &dscr.descriptorSetLayout_1UC_4SC
         );
+    }
+    if (ENABLE_LVBH) {
+        cmpt.createComputePipeline_lbvh(dscr.descriptorSetLayout_lbvh);
     }
     cmd.createCommandPool();                                                // commandPool
     swp.createColorResources();                                             // colorImageView
@@ -121,7 +128,16 @@ void Engine::run()
         );
         bfr.createBuffer_physics_particles_compute();
     }
-    //================================================
+    //================== LVBH ==================
+    if (ENABLE_LVBH) {
+        bfr.createBuffer_lbvh_elementsBuffer(poits2d);
+        bfr.createBuffer_lbvh_mortonCode();
+        bfr.createBuffer_lbvh_mortonCode();
+        bfr.createBuffer_lbvh_mortonCodePingPong();
+        bfr.createBuffer_lbvh_LBVH();
+        bfr.createBuffer_lbvh_LBVHConstructionInfo();
+
+    }
 
     dscr.createDescriptorPool();
 
@@ -137,6 +153,14 @@ void Engine::run()
             bfr.buffer_physics_attractors,  // attractors
             bfr.buffer_physics_particles    // particle old/new
         );
+    }
+    if (ENABLE_LVBH) {
+        dscr.createDS_lbvh(
+            bfr.buffer_lbvh_elements,
+            bfr.buffer_lbvh_mortonCode,
+            bfr.buffer_lbvh_mortonCodePingPong,
+            bfr.buffer_lbvh_LBVH,
+            bfr.buffer_lbvh_LBVHConstructionInfo);
     }
     cmd.createCommandBuffers();
     cmd.createComputeCommandBuffers();
@@ -301,7 +325,7 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
 
     VkDeviceSize offsets[] = { 0 };
     
-    if (ENABLE_PHYSICS) {
+    if (ENABLE_COMPUTE) {
 
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.graphicsPipeline_particles);
 
@@ -395,7 +419,7 @@ void Engine::drawFrame() {
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    if (ENABLE_PHYSICS) {
+    if (ENABLE_COMPUTE) {
         // Compute submission        
         vkWaitForFences(device, 1, &sync.computeInFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
@@ -445,7 +469,7 @@ void Engine::drawFrame() {
     std::vector<VkPipelineStageFlags> waitStages = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 
      
-    if (ENABLE_PHYSICS) {
+    if (ENABLE_COMPUTE) {
         waitSemaphores.push_back(sync.computeFinishedSemaphores[currentFrame]);
         waitStages.push_back(VK_PIPELINE_STAGE_VERTEX_INPUT_BIT);
     }

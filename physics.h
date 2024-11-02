@@ -9,7 +9,7 @@
 #include "structs.h"
 
 
-const uint32_t PARTICLE_COUNT = 256 * 17145;
+const uint32_t PARTICLE_COUNT = 256 * 145;
 const uint32_t PARTICLE_GROUPS = 14;
 const float GRAV_CONST = 1;
 const uint32_t NUM_ATTRACTORS = 2;

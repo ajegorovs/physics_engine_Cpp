@@ -142,6 +142,119 @@ void Buffers::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize si
     Commands::endSingleTimeCommands(*pDevice, *graphicsQueue,*commandPool, commandBuffer);
 }
 
+void Buffers::createBufferDeviceLocalData(
+    VkDeviceSize size,
+    VkBufferUsageFlags usage,
+    std::vector<VkBuffer>& buffer,
+    std::vector<VkDeviceMemory>& bufferMemory,
+    const void* ptr
+) 
+{
+    VkDeviceSize bufferSize = size;
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+    void* data;
+    vkMapMemory(*pDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, ptr, (size_t)bufferSize);
+    vkUnmapMemory(*pDevice, stagingBufferMemory);
+
+    buffer.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory.resize(MAX_FRAMES_IN_FLIGHT);
+
+    // Copy initial particle data to all storage buffers
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBuffer(
+            bufferSize,
+            usage | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            buffer[i],
+            bufferMemory[i]);
+
+        copyBuffer(stagingBuffer, buffer[i], bufferSize);
+    }
+    vkDestroyBuffer(*pDevice, stagingBuffer, nullptr);
+    vkFreeMemory(*pDevice, stagingBufferMemory, nullptr);
+}
+
+void Buffers::createBufferDeviceLocalData(
+    VkDeviceSize size,
+    VkBufferUsageFlags usage,
+    std::vector<VkBuffer>& buffer,
+    std::vector<VkDeviceMemory>& bufferMemory
+)
+{
+    VkDeviceSize bufferSize = size;
+
+    buffer.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory.resize(MAX_FRAMES_IN_FLIGHT);
+
+    // Copy initial particle data to all storage buffers
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBuffer(
+            bufferSize,
+            usage,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            buffer[i],
+            bufferMemory[i]);
+    }
+}
+void Buffers::createBufferDeviceLocalData(
+    VkDeviceSize size,
+    VkBufferUsageFlags usage,
+    VkBuffer& buffer,
+    VkDeviceMemory& bufferMemory,
+    const void* ptr
+)
+{
+    VkDeviceSize bufferSize = size;
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+    void* data;
+    vkMapMemory(*pDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, ptr, (size_t)bufferSize);
+    vkUnmapMemory(*pDevice, stagingBufferMemory);
+
+
+    createBuffer(
+        bufferSize,
+        usage | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        buffer,
+        bufferMemory);
+
+    copyBuffer(stagingBuffer, buffer, bufferSize);
+    
+    vkDestroyBuffer(*pDevice, stagingBuffer, nullptr);
+    vkFreeMemory(*pDevice, stagingBufferMemory, nullptr);
+}
+
+void Buffers::createBufferDeviceLocalData(
+    VkDeviceSize size,
+    VkBufferUsageFlags usage,
+    VkBuffer& buffer,
+    VkDeviceMemory& bufferMemory
+)
+{
+    VkDeviceSize bufferSize = size;
+
+
+    // Copy initial particle data to all storage buffers
+
+    createBuffer(
+        bufferSize,
+        usage,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        buffer,
+        bufferMemory);
+
+}
+
 void Buffers::createVertexBuffer() {
     VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
@@ -241,43 +354,15 @@ void Buffers::createBuffer_physics_particles_compute()
 
     }
 
-    VkDeviceSize bufferSize = sizeof(point3D) * PARTICLE_COUNT;
-
-
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    createBuffer(
-        bufferSize, 
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-        stagingBuffer, 
-        stagingBufferMemory);
-
-    void* data;
-    vkMapMemory(*pDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, particles.data(), (size_t)bufferSize);
-    vkUnmapMemory(*pDevice, stagingBufferMemory);
-
-    buffer_physics_particles.resize(MAX_FRAMES_IN_FLIGHT);
-    bufferMemory_physics_particles.resize(MAX_FRAMES_IN_FLIGHT);
-
-    // Copy initial particle data to all storage buffers
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        createBuffer(
-            bufferSize, 
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
-            buffer_physics_particles[i],
-            bufferMemory_physics_particles[i]);
-
-        copyBuffer(stagingBuffer, buffer_physics_particles[i], bufferSize);
-    }
-
+    createBufferDeviceLocalData(
+        sizeof(point3D) * PARTICLE_COUNT,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        buffer_physics_particles,
+        bufferMemory_physics_particles,
+        static_cast<const void*>(particles.data())
+    );
     //particle_ids.clear();
     //particle_ids.shrink_to_fit();
-
-    vkDestroyBuffer(*pDevice, stagingBuffer, nullptr);
-    vkFreeMemory(*pDevice, stagingBufferMemory, nullptr);
 }
 
 void Buffers::createBuffer_uniformMVP() {
@@ -300,6 +385,77 @@ void Buffers::createBuffer_uniformMVP() {
 
         vkMapMemory(*pDevice, bufferMemory_uniformMVP[i], 0, bufferSize, 0, &bufferMapped_uniformMVP[i]);
     }
+}
+
+void Buffers::createBuffer_lbvh_elementsBuffer(std::vector<std::array<float, 3>> poits2d)
+{
+    std::vector<Element> particles;
+    particles.reserve(NUM_ELEMENTS);
+    float r = 0.05;
+    for (uint32_t i = 0; i < NUM_ELEMENTS; i++)
+    {
+        std::array<float, 3> p = poits2d[i];
+        Element e;
+        e.primitiveIdx = i;
+        e.aabbMinX = p[0] - r;
+        e.aabbMinY = p[1] - r;
+        e.aabbMinZ = p[2] - r;
+        e.aabbMaxX = p[0] + r;
+        e.aabbMaxY = p[1] + r;
+        e.aabbMaxZ = p[2] + r;
+        particles.push_back(e);
+    }
+
+    createBufferDeviceLocalData(
+        sizeof(Element) * NUM_ELEMENTS,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        buffer_lbvh_elements,
+        bufferMemory_lbvh_elements,
+        static_cast<const void*>(particles.data())
+    );
+    //particle_ids.clear();
+    //particle_ids.shrink_to_fit();
+}
+
+void Buffers::createBuffer_lbvh_mortonCode()
+{
+    createBufferDeviceLocalData(
+        sizeof(MortonCodeElement) * NUM_ELEMENTS,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        buffer_lbvh_mortonCode,
+        bufferMemory_lbvh_mortonCode
+    );
+
+}
+
+void Buffers::createBuffer_lbvh_mortonCodePingPong()
+{
+    createBufferDeviceLocalData(
+        sizeof(MortonCodeElement) * NUM_ELEMENTS,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        buffer_lbvh_mortonCodePingPong,
+        bufferMemory_lbvh_mortonCodePingPong
+    );
+}
+
+void Buffers::createBuffer_lbvh_LBVH()
+{
+    createBufferDeviceLocalData(
+        sizeof(LBVHNode) * NUM_LBVH_ELEMENTS,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        buffer_lbvh_LBVH,
+        bufferMemory_lbvh_LBVH
+    );
+}
+
+void Buffers::createBuffer_lbvh_LBVHConstructionInfo()
+{
+    createBufferDeviceLocalData(
+        sizeof(LBVHConstructionInfo) * NUM_LBVH_ELEMENTS,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        buffer_lbvh_LBVHConstructionInfo,
+        bufferMemory_lbvh_LBVHConstructionInfo
+    );
 }
 
 void Buffers::createBuffer_uniformDeltaTime()
