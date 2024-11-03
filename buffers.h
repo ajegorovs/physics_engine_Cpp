@@ -16,7 +16,7 @@ public:
 	VkQueue* graphicsQueue;
 	std::vector<Vertex> vertices;
 	std::vector<uint32_t> indices;
-	std::vector<VertexBase> line_vertices;
+	//std::vector<VertexBase> line_vertices;
 	VkBuffer buffer_lines;
 	std::vector<VkBuffer> buffer_storageTransformations;
 	std::vector<VkBuffer> buffer_uniformMVP;
@@ -30,6 +30,10 @@ public:
 	VkBuffer buffer_lbvh_mortonCodePingPong;
 	VkBuffer buffer_lbvh_LBVH;
 	VkBuffer buffer_lbvh_LBVHConstructionInfo;
+	VkBuffer buffer_lbvh_LBVH_host_vis;
+
+	VkDeviceMemory bufferMemory_lbvh_LBVH_host_vis;
+
 
 	Buffers();
 	Buffers(VkDevice * pDevice, VkPhysicalDevice* physicalDevice, VkCommandPool* commandPool, VkQueue* graphicsQueue);
@@ -65,8 +69,8 @@ public:
 	);
 
 	void processScene(const std::vector<std::unique_ptr<geometric_shape>>& pScene);
-	void processGrid();
-	void processMortonLines(std::vector<std::array<float, 3>> points, glm::vec3 color, glm::vec3 offset);
+	//void processGrid();
+	//void processMortonLines(std::vector<std::array<float, 3>> points, glm::vec3 color, glm::vec3 offset);
 	void createVertexBuffer();
 	void createBuffer_line();
 	void createIndexBuffer();
@@ -81,6 +85,8 @@ public:
 	void createBuffer_lbvh_LBVH();
 	void createBuffer_lbvh_LBVHConstructionInfo();
 
+	void createBuffer_lbvh_LBVH_hist_vis();
+
 	void createBuffer_uniformDeltaTime();
 	void createBuffer_physics_particles_compute();
 	void createBuffer_physics_particles_constants();
@@ -94,6 +100,9 @@ public:
 	std::vector<void*> bufferMapped_uniformMVP;
 	std::vector<void*> bufferMapped_uniformDeltaTime;
 	std::vector<void*> bufferMapped_physics_attractors;
+
+	void* bufferMapped_lines;
+	void* bufferMapped_lbvh_LBVH_hist_vis;
 
 	VkBuffer vertexBuffer;
 	VkBuffer indexBuffer;
@@ -116,9 +125,9 @@ private:
 	VkDeviceMemory bufferMemory_lbvh_LBVH;
 	VkDeviceMemory bufferMemory_lbvh_LBVHConstructionInfo;
 
-	VkDeviceMemory bufferMemory_lines;
 	VkDeviceMemory vertexBufferMemory;
 	VkDeviceMemory indexBufferMemory;
+	VkDeviceMemory bufferMemory_lines;
 
 
 };

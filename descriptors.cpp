@@ -2,6 +2,7 @@
 #include "config.h"	    // MAX_FRAMES_IN_FLIGHT, PARTICLE_COUNT
 #include "structs.h"
 #include "physics.h"
+#include "lbvh.h"
 #include <array>
 #include <stdexcept>
 

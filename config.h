@@ -2,6 +2,7 @@
 #define GLM_FORCE_CXX17
 #include <iostream>
 #include <vector>
+#include <array>
 
 // Window dimensions
 const uint32_t WIDTH = 800;
@@ -12,9 +13,7 @@ const int MAX_FRAMES_IN_FLIGHT = 2;
 const bool ENABLE_PHYSICS = true;
 const bool ENABLE_COMPUTE = true;
 const bool ENABLE_LVBH = true;
-const uint32_t NUM_ELEMENTS = 3*3;
-const uint32_t NUM_LBVH_ELEMENTS = NUM_ELEMENTS + NUM_ELEMENTS - 1;
-
+const bool ENABLE_POLY = false;
 
 
 const std::string MODEL_PATH = "models/viking_room.obj";

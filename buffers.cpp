@@ -2,6 +2,7 @@
 #include "device2.h"
 #include "commands.h"
 #include "physics.h"
+#include "lbvh.h"
 #include <iostream>
 #include <cstdint>
 #include <algorithm>
@@ -44,58 +45,58 @@ void Buffers::processScene(const std::vector<std::unique_ptr<geometric_shape>>& 
     }
 }
 
-void Buffers::processGrid()
-{
-    glm::vec3 P1(-3.0f, -3.0f, 0.0f);
-    glm::vec3 P2( 3.0f,  3.0f, 0.0f);
-    glm::vec3 dims = (P2 - P1);
+//void Buffers::processGrid()
+//{
+//    glm::vec3 P1(-3.0f, -3.0f, 0.0f);
+//    glm::vec3 P2( 3.0f,  3.0f, 0.0f);
+//    glm::vec3 dims = (P2 - P1);
+//
+//    int num_h_lines = 8;
+//    int num_v_lines = 8;
+//
+//    glm::vec2 dr = glm::vec2(dims[0] / num_v_lines, dims[1] / num_h_lines);
+//
+//    glm::vec3 clr(0.0f, 1.0f, 0.0f);
+//
+//    for (size_t i = 0; i <= num_h_lines; i++) { // + 1 line <=
+//
+//        VertexBase p1{ glm::vec3(0      , i * dr.y, 0) + P1, clr};
+//        VertexBase p2{ glm::vec3(dims.x , i * dr.y, 0) + P1, clr};
+//
+//        line_vertices.push_back(p1);
+//        line_vertices.push_back(p2);
+//
+//    }
+//
+//    for (size_t i = 0; i <= num_v_lines; i++) {
+//
+//        VertexBase p1{ glm::vec3(i * dr.x , 0     ,  0) + P1, clr };
+//        VertexBase p2{ glm::vec3(i * dr.x , dims.y,  0) + P1, clr };
+//
+//        line_vertices.push_back(p1);
+//        line_vertices.push_back(p2);
+//
+//    }
+//
+//
+//}
 
-    int num_h_lines = 8;
-    int num_v_lines = 8;
-
-    glm::vec2 dr = glm::vec2(dims[0] / num_v_lines, dims[1] / num_h_lines);
-
-    glm::vec3 clr(0.0f, 1.0f, 0.0f);
-
-    for (size_t i = 0; i <= num_h_lines; i++) { // + 1 line <=
-
-        VertexBase p1{ glm::vec3(0      , i * dr.y, 0) + P1, clr};
-        VertexBase p2{ glm::vec3(dims.x , i * dr.y, 0) + P1, clr};
-
-        line_vertices.push_back(p1);
-        line_vertices.push_back(p2);
-
-    }
-
-    for (size_t i = 0; i <= num_v_lines; i++) {
-
-        VertexBase p1{ glm::vec3(i * dr.x , 0     ,  0) + P1, clr };
-        VertexBase p2{ glm::vec3(i * dr.x , dims.y,  0) + P1, clr };
-
-        line_vertices.push_back(p1);
-        line_vertices.push_back(p2);
-
-    }
-
-
-}
-
-void Buffers::processMortonLines(std::vector<std::array<float, 3>> points, glm::vec3 color, glm::vec3 offset)
-{
-    
-    int N = points.size();
-    for (size_t i = 0; i < N - 1; i++)
-    {
-        std::array<float, 3> c = points[i];
-        std::array<float, 3> g = points[i+1];
-        VertexBase p1{ 3.0f * glm::vec3(c[0], c[1], c[2])+offset, color };
-        VertexBase p2{ 3.0f * glm::vec3(g[0], g[1], g[2])+offset, color };
-
-        line_vertices.push_back(p1);
-        line_vertices.push_back(p2);
-    }
-
-}
+//void Buffers::processMortonLines(std::vector<std::array<float, 3>> points, glm::vec3 color, glm::vec3 offset)
+//{
+//    
+//    int N = points.size();
+//    for (size_t i = 0; i < N - 1; i++)
+//    {
+//        std::array<float, 3> c = points[i];
+//        std::array<float, 3> g = points[i+1];
+//        VertexBase p1{ 3.0f * glm::vec3(c[0], c[1], c[2])+offset, color };
+//        VertexBase p2{ 3.0f * glm::vec3(g[0], g[1], g[2])+offset, color };
+//
+//        line_vertices.push_back(p1);
+//        line_vertices.push_back(p2);
+//    }
+//
+//}
 
 // non-local: createTextureImage, 
 void Buffers::createBuffer(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
@@ -276,24 +277,13 @@ void Buffers::createVertexBuffer() {
 }
 
 void Buffers::createBuffer_line()
-{
-    VkDeviceSize bufferSize = sizeof(line_vertices[0]) * line_vertices.size();
+{                                          
+    createBuffer(lineVertSize, 
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        buffer_lines, bufferMemory_lines);
 
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-
-    void* data;
-    vkMapMemory(*pDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, line_vertices.data(), (size_t)bufferSize);
-    vkUnmapMemory(*pDevice, stagingBufferMemory);
-
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffer_lines, bufferMemory_lines);
-
-    copyBuffer(stagingBuffer, buffer_lines, bufferSize);
-
-    vkDestroyBuffer(*pDevice, stagingBuffer, nullptr);
-    vkFreeMemory(*pDevice, stagingBufferMemory, nullptr);
+    vkMapMemory(*pDevice, bufferMemory_lines, 0, lineVertSize, 0, &bufferMapped_lines);
 }
 
 void Buffers::createIndexBuffer() {
@@ -391,7 +381,7 @@ void Buffers::createBuffer_lbvh_elementsBuffer(std::vector<std::array<float, 3>>
 {
     std::vector<Element> particles;
     particles.reserve(NUM_ELEMENTS);
-    float r = 0.05;
+    float r = 0.005;
     for (uint32_t i = 0; i < NUM_ELEMENTS; i++)
     {
         std::array<float, 3> p = poits2d[i];
@@ -442,7 +432,7 @@ void Buffers::createBuffer_lbvh_LBVH()
 {
     createBufferDeviceLocalData(
         sizeof(LBVHNode) * NUM_LBVH_ELEMENTS,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         buffer_lbvh_LBVH,
         bufferMemory_lbvh_LBVH
     );
@@ -456,6 +446,20 @@ void Buffers::createBuffer_lbvh_LBVHConstructionInfo()
         buffer_lbvh_LBVHConstructionInfo,
         bufferMemory_lbvh_LBVHConstructionInfo
     );
+}
+
+void Buffers::createBuffer_lbvh_LBVH_hist_vis()
+{
+    VkDeviceSize size = sizeof(LBVHNode) * NUM_LBVH_ELEMENTS;
+    createBuffer(
+        size,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_DST_BIT| VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        buffer_lbvh_LBVH_host_vis,
+        bufferMemory_lbvh_LBVH_host_vis);
+
+    vkMapMemory(*pDevice, bufferMemory_lbvh_LBVH_host_vis, 0, 
+        size, 0, &bufferMapped_lbvh_LBVH_hist_vis);
 }
 
 void Buffers::createBuffer_uniformDeltaTime()

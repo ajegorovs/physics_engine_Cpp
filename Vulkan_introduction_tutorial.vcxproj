@@ -145,6 +145,7 @@
     <ClCompile Include="device2.cpp" />
     <ClCompile Include="engine.cpp" />
     <ClCompile Include="glfw_support.cpp" />
+    <ClCompile Include="lbvh.cpp" />
     <ClCompile Include="main2.cpp" />
     <ClCompile Include="MathsGL.cpp" />
     <ClCompile Include="misc.cpp" />
@@ -165,6 +166,7 @@
     <ClInclude Include="device2.h" />
     <ClInclude Include="engine.h" />
     <ClInclude Include="glfw_support.h" />
+    <ClInclude Include="lbvh.h" />
     <ClInclude Include="MathsGL.h" />
     <ClInclude Include="misc.h" />
     <ClInclude Include="graphics.h" />

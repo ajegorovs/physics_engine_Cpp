@@ -54,9 +54,8 @@ void main() {
     }
 
     uint nodeIdx = g_lbvh_construction_infos[LEAF_OFFSET + gID].parent;
-    //while (true) {
-	for (int i = 0; i< 10000; i++){
-        int visitations = atomicAdd(g_lbvh_construction_infos[nodeIdx].visitationCount, 1);
+    while (true) {
+	    int visitations = atomicAdd(g_lbvh_construction_infos[nodeIdx].visitationCount, 1);
         if (visitations < 1) {
             // this is the first thread that arrived at this node -> finished
             return;
@@ -79,12 +78,12 @@ void main() {
         vec3 minAABB;
         vec3 maxAABB;
         aabbUnion(minA, maxA, minB, maxB, minAABB, maxAABB);
-        bvhNode.aabbMinX = minAABB.x;
-        bvhNode.aabbMinY = minAABB.y;
-        bvhNode.aabbMinZ = minAABB.z;
-        bvhNode.aabbMaxX = maxAABB.x;
-        bvhNode.aabbMaxY = maxAABB.y;
-        bvhNode.aabbMaxZ = maxAABB.z;
+        bvhNode.aabbMinX = minAABB.x;//0.1f;//bvhNodeChildA.aabbMinX;//minAABB.x;//0.1f;//
+        bvhNode.aabbMinY = minAABB.y;//0.2f;//bvhNodeChildA.aabbMinY;//minAABB.y;//0.2f;//
+        bvhNode.aabbMinZ = minAABB.z;//0.3f;//bvhNodeChildA.aabbMinZ;//minAABB.z;//0.3f;//
+        bvhNode.aabbMaxX = maxAABB.x;//0.4f;//bvhNodeChildA.aabbMaxX;//maxAABB.x;//0.4f;//
+        bvhNode.aabbMaxY = maxAABB.y;//0.5f;//bvhNodeChildA.aabbMaxY;//maxAABB.y;//0.5f;//
+        bvhNode.aabbMaxZ = maxAABB.z;//0.6f;//bvhNodeChildA.aabbMaxZ;//maxAABB.z;//0.6f;//
         g_lbvh[nodeIdx] = bvhNode;
         if (nodeIdx == 0) {
             return;

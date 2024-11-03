@@ -11,6 +11,7 @@
 #include <glm/ext/scalar_constants.hpp>
 #include <random>  
 #include "MathsGL.h"
+#include "lbvh.h"
 
 Engine::Engine() :
     glfw_s(),
@@ -37,8 +38,10 @@ void Engine::run()
     std::vector<float> densities;       //= { 1.0f };
     std::vector<glm::vec3> positions;   //= { glm::vec3(0.0f, 0.0f, 0.0f) };
 
-    std::vector<std::array<float, 3>> poits2d =  Misc::seedUniformPoints2D(NUM_ELEMENTS);
-    std::vector<std::array<float, 3>> poits2dSorted = Misc::sortByMorton(poits2d);
+   
+
+   
+    //std::vector<std::array<float, 3>> poits2dSorted = Misc::sortByMorton(poits2d);
 
     //const PushConstantsMortonCodes pushConstMC{ NUM_ELEMENTS, -3.0f, -3.0f, -0.1f, 3.0f, 3.0f, 0.1f };
     
@@ -111,8 +114,8 @@ void Engine::run()
 
     bfr.processScene(scene);                                                // yeet vertices, indices and IDs into pre-buffers
     //bfr.processGrid();
-    bfr.processMortonLines(poits2d      , glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(-1.5f, 0.2f, 0.0f));
-    bfr.processMortonLines(poits2dSorted, glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(-1.5f, -3.2f, 0.0f));
+    //bfr.processMortonLines(poits2d      , glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(-1.5f, 0.2f, 0.0f));
+    //bfr.processMortonLines(poits2dSorted, glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(-1.5f, -3.2f, 0.0f));
     bfr.createVertexBuffer();
     bfr.createIndexBuffer();
     bfr.createBuffer_line();
@@ -139,7 +142,7 @@ void Engine::run()
         bfr.createBuffer_lbvh_mortonCodePingPong();
         bfr.createBuffer_lbvh_LBVH();
         bfr.createBuffer_lbvh_LBVHConstructionInfo();
-
+        bfr.createBuffer_lbvh_LBVH_hist_vis();
     }
 
     dscr.createDescriptorPool();
@@ -260,7 +263,7 @@ void Engine::updateBufferMapped_uniformMVP(uint32_t currentImage) {
 
     StructMVP ubo{};
     ubo.model = glm::rotate(glm::mat4(1.0f), 0.0f*0.5f * time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.view = glm::lookAt(glm::vec3(1.0f, 0.0f, 8.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(glm::vec3(1.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), swp.swapChainExtent.width / (float)swp.swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
 
@@ -342,9 +345,6 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
 
         vkCmdDraw(commandBuffer, PARTICLE_COUNT, 1, 0, 0);
     }
-    //// draw cpu particles
-    //VkBuffer vertexBuffers2[] = { bfr.buffer_storageParticles[currentFrame]};
-    //vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers2, offsets);
 
     // draw lines;
 
@@ -353,24 +353,26 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &bfr.buffer_lines, offsets);
 
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.pipelineLayout_lines, 0, 1, &dscr.descriptorSets_uniformMVP[currentFrame], 0, nullptr);
-    vkCmdSetLineWidth(commandBuffer, 2.0f);
+    vkCmdSetLineWidth(commandBuffer, 1.0f);
     vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
-    vkCmdDraw(commandBuffer, bfr.line_vertices.size(), 1, 0, 0);
+    vkCmdDraw(commandBuffer, NUM_BB_POINTS, 1, 0, 0);
 
     //vkCmdDraw(commandBuffer, PARTICLE_COUNT, 1, 0, 0);
-    // draw polygon geom
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.graphicsPipeline);
-    
-    VkBuffer vertexBuffers3[] = { bfr.vertexBuffer };
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers3, offsets);
-    
-    vkCmdBindIndexBuffer(commandBuffer, bfr.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.pipelineLayout, 0, 1, &dscr.descriptorSets_multi_MPV_TS_TRN[currentFrame], 0, nullptr);
-    
-    vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(bfr.indices.size()), 1, 0, 0, 0);
+    if (ENABLE_POLY)
+    {
+        // draw polygon geom
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.graphicsPipeline);
 
+        VkBuffer vertexBuffers3[] = { bfr.vertexBuffer };
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers3, offsets);
+
+        vkCmdBindIndexBuffer(commandBuffer, bfr.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.pipelineLayout, 0, 1, &dscr.descriptorSets_multi_MPV_TS_TRN[currentFrame], 0, nullptr);
+
+        vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+        vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(bfr.indices.size()), 1, 0, 0, 0);
+    }
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -399,78 +401,84 @@ void Engine::recordComputeCommandBuffer(VkCommandBuffer commandBuffer) {
     // 
     //bool evenFrame = currentFrame % 2;
     
-    
-    // ====================== LBVH ========================
-    // -------------- Generate Morton Codes ---------------
-    beginInfo = {};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    if (currentFrame % 2 == 0)
+    {
+        // ====================== LBVH ========================
+        // -------------- Generate Morton Codes ---------------
+        beginInfo = {};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-    //if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
-    //    throw std::runtime_error("failed to begin recording compute command buffer!");
-    //}
-    const PushConstantsMortonCodes pushConstMC{ NUM_ELEMENTS, -3.0f, -3.0f, -0.1f, 3.0f, 3.0f, 0.1f };
+        //if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
+        //    throw std::runtime_error("failed to begin recording compute command buffer!");
+        //}
+        //const PushConstantsMortonCodes pushConstMC{ NUM_ELEMENTS, -3.0f, -3.0f, -0.1f, 3.0f, 3.0f, 0.1f };
+        const PushConstantsMortonCodes pushConstMC{ NUM_ELEMENTS, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f };
 
-    vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_morton_codes, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsMortonCodes), &pushConstMC);
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_morton_codes);
+        vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_morton_codes, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsMortonCodes), &pushConstMC);
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_morton_codes);
 
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_morton_codes, 0, dscr.descriptorSets_lbvh.size(), dscr.descriptorSets_lbvh.data(), 0, nullptr);
-
-    vkCmdDispatch(commandBuffer, NUM_ELEMENTS, 1, 1);
-
-    VkMemoryBarrier memoryBarrier0{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, VK_NULL_HANDLE, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
-
-    vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier0, 0, nullptr, 0, nullptr);
-
-    // --------------------- Radix Sort ------------------------
-    PushConstantsRadixSort pushConstRS{ NUM_ELEMENTS };
-
-    vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_single_radixsort, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsRadixSort), &pushConstRS);
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_single_radixsort);
-
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_single_radixsort, 0, dscr.descriptorSets_lbvh.size(), dscr.descriptorSets_lbvh.data(), 0, nullptr);
-
-    vkCmdDispatch(commandBuffer, 256, 1, 1);
-
-    VkMemoryBarrier memoryBarrier1{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, VK_NULL_HANDLE, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
-
-    vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier1, 0, nullptr, 0, nullptr);
-
-    // ------------------ Calculate Hierarchy -------------------
-
-    PushConstantsHierarchy pushConstHierarchy{ NUM_ELEMENTS, 1 };
-
-    vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_hierarchy, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsHierarchy), &pushConstHierarchy);
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_hierarchy);
-
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_hierarchy, 0, dscr.descriptorSets_lbvh.size(), dscr.descriptorSets_lbvh.data(), 0, nullptr);
-
-    vkCmdDispatch(commandBuffer, NUM_ELEMENTS, 1, 1);
-
-    VkMemoryBarrier memoryBarrier2{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, VK_NULL_HANDLE, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
-
-    vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier2, 0, nullptr, 0, nullptr);
-
-
-    // -------------- Calculate Bounding Boxes -----------------
-
-    PushConstantsBoundingBoxes PushConstantsBoundingBoxes{ NUM_ELEMENTS, 0 };
-
-    vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_bounding_boxes, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsBoundingBoxes), &PushConstantsBoundingBoxes);
-
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_bounding_boxes);
-
-
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_bounding_boxes, 0, dscr.descriptorSets_lbvh.size(), dscr.descriptorSets_lbvh.data(), 0, nullptr);
-
-    if (1 == 1) {
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_morton_codes, 0, dscr.descriptorSets_lbvh.size(), dscr.descriptorSets_lbvh.data(), 0, nullptr);
 
         vkCmdDispatch(commandBuffer, NUM_ELEMENTS, 1, 1);
-        
+
+        VkMemoryBarrier memoryBarrier0{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, VK_NULL_HANDLE, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
+
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier0, 0, nullptr, 0, nullptr);
+
+        // --------------------- Radix Sort ------------------------
+        PushConstantsRadixSort pushConstRS{ NUM_ELEMENTS };
+
+        vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_single_radixsort, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsRadixSort), &pushConstRS);
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_single_radixsort);
+
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_single_radixsort, 0, dscr.descriptorSets_lbvh.size(), dscr.descriptorSets_lbvh.data(), 0, nullptr);
+
+        vkCmdDispatch(commandBuffer, 256, 1, 1);
+
+        VkMemoryBarrier memoryBarrier1{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, VK_NULL_HANDLE, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
+
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier1, 0, nullptr, 0, nullptr);
+
+        // ------------------ Calculate Hierarchy -------------------
+
+        PushConstantsHierarchy pushConstHierarchy{ NUM_ELEMENTS, 1 };
+
+        vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_hierarchy, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsHierarchy), &pushConstHierarchy);
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_hierarchy);
+
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_hierarchy, 0, dscr.descriptorSets_lbvh.size(), dscr.descriptorSets_lbvh.data(), 0, nullptr);
+
+        vkCmdDispatch(commandBuffer, NUM_ELEMENTS, 1, 1);
+
+        VkMemoryBarrier memoryBarrier2{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, VK_NULL_HANDLE, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
+
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier2, 0, nullptr, 0, nullptr);
+
+
+        // -------------- Calculate Bounding Boxes -----------------
+
+        PushConstantsBoundingBoxes PushConstantsBoundingBoxes{ NUM_ELEMENTS, 1 };
+
+        vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_bounding_boxes, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsBoundingBoxes), &PushConstantsBoundingBoxes);
+
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_bounding_boxes);
+
+
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_bounding_boxes, 0, dscr.descriptorSets_lbvh.size(), dscr.descriptorSets_lbvh.data(), 0, nullptr);
+
+        vkCmdDispatch(commandBuffer, NUM_ELEMENTS, 1, 1);
+
         VkMemoryBarrier memoryBarrier3{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, VK_NULL_HANDLE, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
 
         vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier3, 0, nullptr, 0, nullptr);
-        
-        yes = false;
+
+        // --------------- copy LBVH to host-visible buffer.
+        VkBufferCopy copyRegion{};
+        copyRegion.srcOffset = 0; // Optional
+        copyRegion.dstOffset = 0; // Optional
+        copyRegion.size = sizeof(LBVHNode) * NUM_LBVH_ELEMENTS;
+
+        vkCmdCopyBuffer(commandBuffer, bfr.buffer_lbvh_LBVH, bfr.buffer_lbvh_LBVH_host_vis, 1, &copyRegion);
     }
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to record compute command buffer!");
@@ -501,8 +509,8 @@ void Engine::drawFrame() {
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     if (ENABLE_COMPUTE) {
-        // Compute submission        
-        vkWaitForFences(device, 1, &sync.computeInFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+        // Compute submission.. waiting right after compute pass.        
+        //vkWaitForFences(device, 1, &sync.computeInFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
         updateBufferMapped_uniformDeltaTime(currentFrame);
 
@@ -516,14 +524,47 @@ void Engine::drawFrame() {
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = &sync.computeFinishedSemaphores[currentFrame];
         VkResult resultCompute = vkQueueSubmit(computeQueue, 1, &submitInfo, sync.computeInFlightFences[currentFrame]);
-        std::cout << resultCompute << std::endl;
+        //std::cout << resultCompute << std::endl;
         if (resultCompute != VK_SUCCESS) {
             throw std::runtime_error("failed to submit compute command buffer!");
         };
     }
+
+
+    vkWaitForFences(device, 1, &sync.computeInFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+    vkResetFences(device, 1, &sync.computeInFlightFences[currentFrame]);
+    
+    if (currentFrame % 2 == 0)
+    {
+        // ---------------- Draw bounding boxes!!! ------------------------
+        // ================================================================
+
+        std::vector<LBVHNode> nodes(NUM_LBVH_ELEMENTS); // Allocate vector to hold the copied data
+        VkDeviceSize bSize = sizeof(LBVHNode) * NUM_LBVH_ELEMENTS;
+        std::memcpy(nodes.data(), bfr.bufferMapped_lbvh_LBVH_hist_vis, sizeof(LBVHNode) * NUM_LBVH_ELEMENTS);
+
+
+        std::vector<VertexBase> verts;
+        verts.reserve(NUM_BB_POINTS);
+
+
+        for (size_t i = 0; i < NUM_ELEMENTS - 1; i++)
+        {
+            BBox::getVerts(
+                nodes[i].aabbMinX,
+                nodes[i].aabbMinY,
+                nodes[i].aabbMinZ,
+                nodes[i].aabbMaxX,
+                nodes[i].aabbMaxY,
+                nodes[i].aabbMaxZ,
+                verts
+            );
+        }
+
+        std::memcpy(bfr.bufferMapped_lines, verts.data(), sizeof(VertexBase) * NUM_BB_POINTS);
+    }
     // Graphics submission
     VkResult resf = vkWaitForFences(device, 1, &sync.inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
-
     //updateBufferMapped_storageParticles(currentFrame);
 
     updateBufferMapped_storageTransformtions(currentFrame);
