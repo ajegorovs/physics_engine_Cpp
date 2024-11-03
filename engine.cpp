@@ -39,6 +39,9 @@ void Engine::run()
 
     std::vector<std::array<float, 3>> poits2d =  Misc::seedUniformPoints2D(NUM_ELEMENTS);
     std::vector<std::array<float, 3>> poits2dSorted = Misc::sortByMorton(poits2d);
+
+    //const PushConstantsMortonCodes pushConstMC{ NUM_ELEMENTS, -3.0f, -3.0f, -0.1f, 3.0f, 3.0f, 0.1f };
+    
     if (ENABLE_PHYSICS) {
         masses.push_back(20.0f);
         masses.push_back(4.0f);
@@ -325,7 +328,7 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
 
     VkDeviceSize offsets[] = { 0 };
     
-    if (ENABLE_COMPUTE) {
+    if (ENABLE_COMPUTE && ENABLE_PHYSICS) {
 
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.graphicsPipeline_particles);
 
@@ -390,10 +393,88 @@ void Engine::recordComputeCommandBuffer(VkCommandBuffer commandBuffer) {
 
     vkCmdDispatch(commandBuffer, PARTICLE_COUNT / 256, 1, 1);
 
+    //if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+    //    throw std::runtime_error("failed to record compute command buffer!");
+    //}
+    // 
+    //bool evenFrame = currentFrame % 2;
+    
+    
+    // ====================== LBVH ========================
+    // -------------- Generate Morton Codes ---------------
+    beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    //if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
+    //    throw std::runtime_error("failed to begin recording compute command buffer!");
+    //}
+    const PushConstantsMortonCodes pushConstMC{ NUM_ELEMENTS, -3.0f, -3.0f, -0.1f, 3.0f, 3.0f, 0.1f };
+
+    vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_morton_codes, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsMortonCodes), &pushConstMC);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_morton_codes);
+
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_morton_codes, 0, dscr.descriptorSets_lbvh.size(), dscr.descriptorSets_lbvh.data(), 0, nullptr);
+
+    vkCmdDispatch(commandBuffer, NUM_ELEMENTS, 1, 1);
+
+    VkMemoryBarrier memoryBarrier0{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, VK_NULL_HANDLE, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
+
+    vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier0, 0, nullptr, 0, nullptr);
+
+    // --------------------- Radix Sort ------------------------
+    PushConstantsRadixSort pushConstRS{ NUM_ELEMENTS };
+
+    vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_single_radixsort, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsRadixSort), &pushConstRS);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_single_radixsort);
+
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_single_radixsort, 0, dscr.descriptorSets_lbvh.size(), dscr.descriptorSets_lbvh.data(), 0, nullptr);
+
+    vkCmdDispatch(commandBuffer, 256, 1, 1);
+
+    VkMemoryBarrier memoryBarrier1{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, VK_NULL_HANDLE, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
+
+    vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier1, 0, nullptr, 0, nullptr);
+
+    // ------------------ Calculate Hierarchy -------------------
+
+    PushConstantsHierarchy pushConstHierarchy{ NUM_ELEMENTS, 1 };
+
+    vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_hierarchy, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsHierarchy), &pushConstHierarchy);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_hierarchy);
+
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_hierarchy, 0, dscr.descriptorSets_lbvh.size(), dscr.descriptorSets_lbvh.data(), 0, nullptr);
+
+    vkCmdDispatch(commandBuffer, NUM_ELEMENTS, 1, 1);
+
+    VkMemoryBarrier memoryBarrier2{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, VK_NULL_HANDLE, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
+
+    vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier2, 0, nullptr, 0, nullptr);
+
+
+    // -------------- Calculate Bounding Boxes -----------------
+
+    PushConstantsBoundingBoxes PushConstantsBoundingBoxes{ NUM_ELEMENTS, 0 };
+
+    vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_bounding_boxes, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsBoundingBoxes), &PushConstantsBoundingBoxes);
+
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_bounding_boxes);
+
+
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_bounding_boxes, 0, dscr.descriptorSets_lbvh.size(), dscr.descriptorSets_lbvh.data(), 0, nullptr);
+
+    if (1 == 1) {
+
+        vkCmdDispatch(commandBuffer, NUM_ELEMENTS, 1, 1);
+        
+        VkMemoryBarrier memoryBarrier3{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, VK_NULL_HANDLE, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
+
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier3, 0, nullptr, 0, nullptr);
+        
+        yes = false;
+    }
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to record compute command buffer!");
     }
-
 }
 
 void Engine::recreateSwapChain() {
@@ -435,12 +516,13 @@ void Engine::drawFrame() {
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = &sync.computeFinishedSemaphores[currentFrame];
         VkResult resultCompute = vkQueueSubmit(computeQueue, 1, &submitInfo, sync.computeInFlightFences[currentFrame]);
+        std::cout << resultCompute << std::endl;
         if (resultCompute != VK_SUCCESS) {
             throw std::runtime_error("failed to submit compute command buffer!");
         };
     }
     // Graphics submission
-    vkWaitForFences(device, 1, &sync.inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+    VkResult resf = vkWaitForFences(device, 1, &sync.inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
     //updateBufferMapped_storageParticles(currentFrame);
 
@@ -472,6 +554,7 @@ void Engine::drawFrame() {
     if (ENABLE_COMPUTE) {
         waitSemaphores.push_back(sync.computeFinishedSemaphores[currentFrame]);
         waitStages.push_back(VK_PIPELINE_STAGE_VERTEX_INPUT_BIT);
+        //waitStages.push_back(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
     }
    
     submitInfo = {};
@@ -488,7 +571,8 @@ void Engine::drawFrame() {
     submitInfo.signalSemaphoreCount = static_cast<uint32_t>(std::size(signalSemaphores));
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, sync.inFlightFences[currentFrame]) != VK_SUCCESS) {
+    VkResult res = vkQueueSubmit(graphicsQueue, 1, &submitInfo, sync.inFlightFences[currentFrame]);
+    if (res != VK_SUCCESS) {
         throw std::runtime_error("failed to submit draw command buffer!");
     }
 

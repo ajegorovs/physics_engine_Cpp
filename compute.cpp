@@ -135,6 +135,18 @@ void Compute::cleanup()
 {
     vkDestroyPipeline(*pDevice, computePipeline, nullptr);
     vkDestroyPipelineLayout(*pDevice, computePipelineLayout, nullptr);
+
+    if (ENABLE_LVBH) {
+        vkDestroyPipeline(*pDevice, computeP_lbvh_morton_codes, nullptr);
+        vkDestroyPipeline(*pDevice, computeP_lbvh_single_radixsort, nullptr);
+        vkDestroyPipeline(*pDevice, computeP_lbvh_hierarchy, nullptr);
+        vkDestroyPipeline(*pDevice, computeP_lbvh_bounding_boxes, nullptr);
+        vkDestroyPipelineLayout(*pDevice, computePL_lbvh_morton_codes, nullptr);
+        vkDestroyPipelineLayout(*pDevice, computePL_lbvh_single_radixsort, nullptr);
+        vkDestroyPipelineLayout(*pDevice, computePL_lbvh_hierarchy, nullptr);
+        vkDestroyPipelineLayout(*pDevice, computePL_lbvh_bounding_boxes, nullptr);
+    }
+    
 }
 
 

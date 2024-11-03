@@ -2,6 +2,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <vector>
+#include <array>
 
 // * Descriptor Set Layout (DSL) determines what kind of resources will be available for stages of some pipeline.
 // You specify number of bindings, their type and which stages they are available to.

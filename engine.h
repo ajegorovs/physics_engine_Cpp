@@ -34,6 +34,7 @@ public:
 	glm::float32 center_mass2;
 	glm::float32 grav_const;
 	glm::vec3 reference_axis;
+	bool yes;
 	
 private:
 	GLFW_support glfw_s;

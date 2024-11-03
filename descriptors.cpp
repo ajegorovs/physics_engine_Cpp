@@ -622,6 +622,12 @@ void Descriptors::cleanupDSL()
     vkDestroyDescriptorSetLayout(*pDevice, descriptorSetLayout_multi_MPV_TS_TRN, nullptr);
     vkDestroyDescriptorSetLayout(*pDevice, descriptorSetLayout_uniformMVP, nullptr);
     vkDestroyDescriptorSetLayout(*pDevice, descriptorSetLayout_1UC_4SC, nullptr);
+
+    for (VkDescriptorSetLayout DSL : descriptorSetLayout_lbvh) {
+        vkDestroyDescriptorSetLayout(*pDevice, DSL, nullptr);
+    }
+    
+
 }
 
 void Descriptors::cleanupDPool()

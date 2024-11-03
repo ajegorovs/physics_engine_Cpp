@@ -54,7 +54,8 @@ void main() {
     }
 
     uint nodeIdx = g_lbvh_construction_infos[LEAF_OFFSET + gID].parent;
-    while (true) {
+    //while (true) {
+	for (int i = 0; i< 10000; i++){
         int visitations = atomicAdd(g_lbvh_construction_infos[nodeIdx].visitationCount, 1);
         if (visitations < 1) {
             // this is the first thread that arrived at this node -> finished

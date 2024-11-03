@@ -397,7 +397,7 @@ void Buffers::createBuffer_lbvh_elementsBuffer(std::vector<std::array<float, 3>>
         std::array<float, 3> p = poits2d[i];
         Element e;
         e.primitiveIdx = i;
-        e.aabbMinX = p[0] - r;
+        e.aabbMinX = p[0] - r; // tested in RenderDoc with 0.1f, 0.2f,...
         e.aabbMinY = p[1] - r;
         e.aabbMinZ = p[2] - r;
         e.aabbMaxX = p[0] + r;
@@ -582,6 +582,20 @@ void Buffers::clearBuffers1(){
             vkFreeMemory(*pDevice, bufferMemory_physics_constants[i], nullptr);
             vkFreeMemory(*pDevice, bufferMemory_physics_attractors[i], nullptr);
         }
+    if (ENABLE_LVBH)//
+    {
+        /*vkDestroyBuffer(*pDevice, buffer_lbvh_elements, nullptr);
+        vkDestroyBuffer(*pDevice, buffer_lbvh_mortonCode, nullptr);
+        vkDestroyBuffer(*pDevice, buffer_lbvh_mortonCodePingPong, nullptr);
+        vkDestroyBuffer(*pDevice, buffer_lbvh_LBVH, nullptr);
+        vkDestroyBuffer(*pDevice, buffer_lbvh_LBVHConstructionInfo, nullptr);*/
+
+        /*vkFreeMemory(*pDevice, bufferMemory_lbvh_elements, nullptr);
+        vkFreeMemory(*pDevice, bufferMemory_lbvh_mortonCode, nullptr);
+        vkFreeMemory(*pDevice, bufferMemory_lbvh_mortonCodePingPong, nullptr);
+        vkFreeMemory(*pDevice, bufferMemory_lbvh_LBVH, nullptr);
+        vkFreeMemory(*pDevice, bufferMemory_lbvh_LBVHConstructionInfo, nullptr);*/
+    }
     }
 }
 

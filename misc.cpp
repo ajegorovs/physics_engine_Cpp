@@ -71,7 +71,7 @@ std::vector<std::array<float,3>> Misc::seedUniformPoints2D(const int N)
 
     for (size_t i = 0; i < N; i++)
     {
-        std::array<float, 3> p{ rndDist(rndEngine), rndDist(rndEngine), 0.0f };
+        std::array<float, 3> p{ rndDist(rndEngine), rndDist(rndEngine), 0.1f * rndDist(rndEngine) };
         output.push_back(p);
     }
     return output;
