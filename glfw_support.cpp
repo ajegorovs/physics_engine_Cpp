@@ -1,6 +1,8 @@
 #include "glfw_support.h"
+#include "enable_stuff.h"
 #include "config.h"
 #include "physics.h"
+#include "lbvh.h"
 #include <string>
 #include <sstream>
 #include <iomanip>
@@ -19,7 +21,10 @@ void GLFW_support::setWindowTitleWithFPS(float lastFrameTime) {
         if (ENABLE_PHYSICS) {
             title << "FPS: " << std::fixed << std::setprecision(2) << fps << " [ NUM PARTICLES: " << PARTICLE_COUNT << "]";
         }
-        else {
+        else if (ENABLE_LVBH) {
+            title << "FPS: " << std::fixed << std::setprecision(2) << fps << " [ NUM ELEMENTS: " << NUM_ELEMENTS << "]";
+        }
+        else{
             title << "FPS: " << std::fixed << std::setprecision(2) << fps;
         }
 

@@ -41,7 +41,7 @@ void Descriptors::createDescriptorPool()
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
     poolInfo.pPoolSizes = poolSizes.data();
-    poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 5; // <<<
+    poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 7; // <<<
 
     VkResult result = vkCreateDescriptorPool(*pDevice, &poolInfo, nullptr, &descriptorPool);
     if (result != VK_SUCCESS) {
@@ -265,7 +265,7 @@ void Descriptors::createDS_lbvh(
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = descriptorPool;
-    allocInfo.descriptorSetCount = descriptorSetLayout_lbvh.size();
+    allocInfo.descriptorSetCount = static_cast<uint32_t>(descriptorSetLayout_lbvh.size());
     allocInfo.pSetLayouts = descriptorSetLayout_lbvh.data();
 
     descriptorSets_lbvh.resize(descriptorSetLayout_lbvh.size());

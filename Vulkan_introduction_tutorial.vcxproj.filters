@@ -128,5 +128,8 @@
     <ClInclude Include="lbvh.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="enable_stuff.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

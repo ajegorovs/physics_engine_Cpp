@@ -65,15 +65,15 @@ void Compute::createComputePipeline(VkPipeline* pComputePipeline, VkPipelineLayo
     computeShaderStageInfo.module = computeShaderModule;
     computeShaderStageInfo.pName = "main";
 
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(pDescriptorSetLayout.size());
+    pipelineLayoutInfo.pSetLayouts = pDescriptorSetLayout.data();
+
     VkPushConstantRange pushConstantRange{};
     pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     pushConstantRange.offset = 0;
     pushConstantRange.size = pushConstSize;
-
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = pDescriptorSetLayout.size();
-    pipelineLayoutInfo.pSetLayouts = pDescriptorSetLayout.data();
 
     pipelineLayoutInfo.pushConstantRangeCount = 1;
     pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
@@ -136,17 +136,15 @@ void Compute::cleanup()
     vkDestroyPipeline(*pDevice, computePipeline, nullptr);
     vkDestroyPipelineLayout(*pDevice, computePipelineLayout, nullptr);
 
-    if (ENABLE_LVBH) {
-        vkDestroyPipeline(*pDevice, computeP_lbvh_morton_codes, nullptr);
-        vkDestroyPipeline(*pDevice, computeP_lbvh_single_radixsort, nullptr);
-        vkDestroyPipeline(*pDevice, computeP_lbvh_hierarchy, nullptr);
-        vkDestroyPipeline(*pDevice, computeP_lbvh_bounding_boxes, nullptr);
-        vkDestroyPipelineLayout(*pDevice, computePL_lbvh_morton_codes, nullptr);
-        vkDestroyPipelineLayout(*pDevice, computePL_lbvh_single_radixsort, nullptr);
-        vkDestroyPipelineLayout(*pDevice, computePL_lbvh_hierarchy, nullptr);
-        vkDestroyPipelineLayout(*pDevice, computePL_lbvh_bounding_boxes, nullptr);
-    }
-    
+    vkDestroyPipeline(*pDevice, computeP_lbvh_morton_codes, nullptr);
+    vkDestroyPipeline(*pDevice, computeP_lbvh_single_radixsort, nullptr);
+    vkDestroyPipeline(*pDevice, computeP_lbvh_hierarchy, nullptr);
+    vkDestroyPipeline(*pDevice, computeP_lbvh_bounding_boxes, nullptr);
+    vkDestroyPipelineLayout(*pDevice, computePL_lbvh_morton_codes, nullptr);
+    vkDestroyPipelineLayout(*pDevice, computePL_lbvh_single_radixsort, nullptr);
+    vkDestroyPipelineLayout(*pDevice, computePL_lbvh_hierarchy, nullptr);
+    vkDestroyPipelineLayout(*pDevice, computePL_lbvh_bounding_boxes, nullptr);
 }
+
 
 

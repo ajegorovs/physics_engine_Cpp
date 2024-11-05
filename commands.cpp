@@ -94,19 +94,6 @@ void Commands::createComputeCommandBuffers()
     }
 }
 
-//void Commands::createComputeCommandBuffers() {
-//    computeCommandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-//
-//    VkCommandBufferAllocateInfo allocInfo{};
-//    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-//    allocInfo.commandPool = commandPool;
-//    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-//    allocInfo.commandBufferCount = (uint32_t)computeCommandBuffers.size();
-//
-//    if (vkAllocateCommandBuffers(*device, &allocInfo, computeCommandBuffers.data()) != VK_SUCCESS) {
-//        throw std::runtime_error("failed to allocate compute command buffers!");
-//    }
-//}
 
 void Commands::copyBufferToImage(VkQueue graphicsQueue, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
     VkCommandBuffer commandBuffer = beginSingleTimeCommands();
@@ -127,4 +114,17 @@ void Commands::copyBufferToImage(VkQueue graphicsQueue, VkBuffer buffer, VkImage
     };
     vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
     endSingleTimeCommands(graphicsQueue, commandBuffer);
+}
+
+void Commands::createLBVHComputeCommandBuffer()
+{
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = commandPool;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = 1;
+
+    if (vkAllocateCommandBuffers(*pDevice, &allocInfo, &commandLBVHComputeBuffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate compute command buffers!");
+    }
 }

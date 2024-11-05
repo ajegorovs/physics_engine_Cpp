@@ -10,9 +10,12 @@ public:
 	std::vector<VkSemaphore> imageAvailableSemaphores;
 	std::vector<VkSemaphore> renderFinishedSemaphores;
 	std::vector<VkSemaphore> computeFinishedSemaphores;
+	VkSemaphore	lbvhComputeSemaphore;
 
 	std::vector<VkFence> inFlightFences;
 	std::vector<VkFence> computeInFlightFences;
+	VkFence lbvhComputeFence;
+
 	Sync();
 	Sync(VkDevice* pDevice);
 	static void transitionImageLayout(VkDevice device, VkCommandPool commandPool, VkQueue graphicsQueue, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels);

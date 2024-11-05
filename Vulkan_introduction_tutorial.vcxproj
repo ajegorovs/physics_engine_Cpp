@@ -164,6 +164,7 @@
     <ClInclude Include="debug2.h" />
     <ClInclude Include="descriptors.h" />
     <ClInclude Include="device2.h" />
+    <ClInclude Include="enable_stuff.h" />
     <ClInclude Include="engine.h" />
     <ClInclude Include="glfw_support.h" />
     <ClInclude Include="lbvh.h" />

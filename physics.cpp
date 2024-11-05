@@ -27,7 +27,6 @@ glm::vec3 Physics::set_circular_orbit_velocity(glm::vec3 mass_center_pos, glm::f
 }
 
 glm::vec3 Physics::rollSphereCoords(float r_min, float r_max, glm::vec3 rolls) {
-	std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
 
 	float pi = glm::pi<float>();
 	float r = (r_max - r_min) * rolls[0] + r_min;

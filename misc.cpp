@@ -1,10 +1,10 @@
 #include "misc.h"
+#include "lbvh.h"
 #include <fstream>  
 #include <random>  
 #include <array>  
 #include <algorithm> 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#include "physics.h" 
 //#include <iostream>
 
 
@@ -62,31 +62,75 @@ unsigned int Misc::morton3D(float x, float y, float z)
     return xx * 4 + yy * 2 + zz;
 }
 
-std::vector<std::array<float,3>> Misc::seedUniformPoints2D(const int N)
+std::vector<glm::vec3> Misc::seedUniformPoints2D(const int N)
 {
-    std::vector<std::array<float, 3>> output;
+    std::vector<glm::vec3> output;
     output.reserve(N);
     std::default_random_engine rndEngine((unsigned)time(nullptr));
     std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
 
     for (size_t i = 0; i < N; i++)
     {
-        std::array<float, 3> p{ rndDist(rndEngine), rndDist(rndEngine), 0.1f * rndDist(rndEngine) };
+        glm::vec3 p{ rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine) };
         output.push_back(p);
     }
     return output;
 }
 
-#include <vector>
-#include <array>
-#include <algorithm>
+std::vector<glm::vec3> Misc::seedUniformGridPoints3D(const int N) {
+    std::vector<glm::vec3> points;
+    points.reserve(N);
+    // Compute the approximate number of divisions per dimension
+    int numDivisions = static_cast<int>(std::floor(std::cbrt(N)));
+    if (numDivisions * numDivisions * numDivisions < N) {
+        numDivisions++;
+    }
+
+    float spacing = 1.0f / (numDivisions - 1); // Spacing between points in each dimension
+
+    for (int x = 0; x < numDivisions; ++x) {
+        for (int y = 0; y < numDivisions; ++y) {
+            for (int z = 0; z < numDivisions; ++z) {
+                if (points.size() < static_cast<size_t>(N)) {  // Only add up to N points
+                    float px = x * spacing;
+                    float py = y * spacing;
+                    float pz = z * spacing;
+                    points.emplace_back(px, py, pz);
+                }
+            }
+        }
+    }
+
+    return points;
+}
+
+std::vector<glm::vec3> Misc::seedUniformSpherePoints3D(const int N)
+{
+    std::vector<glm::vec3> points;
+    points.reserve(N);
+    std::default_random_engine rndEngine((unsigned)time(nullptr));
+    std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
+    for (size_t i = 0; i < N; i++)
+    {
+        float a = rndDist(rndEngine);
+        float b = rndDist(rndEngine);
+        float c = rndDist(rndEngine);
+        glm::vec3 p = Physics::rollSphereCoords(0.0f, 0.5f, glm::vec3(a, b, c));
+        p += glm::vec3(0.5f, 0.5f, 0.5f);
+        //std::cout << p[0] << " " << p[1] << " " << p[2] << std::endl;
+        points.push_back(p);
+    }
+    return points;
+}
+
+
 
 // Assume Misc::morton3D function is defined elsewhere
 
-std::vector<std::array<float, 3>> Misc::sortByMorton(std::vector<std::array<float, 3>> input)
+std::vector<glm::vec3> Misc::sortByMorton(std::vector<glm::vec3> input)
 {
     // Generate Morton code for each point and store them with their associated points
-    std::vector<std::pair<unsigned int, std::array<float, 3>>> mortonPairs;
+    std::vector<std::pair<unsigned int, glm::vec3>> mortonPairs;
     mortonPairs.reserve(input.size());
 
     for (const auto& p : input)
@@ -99,7 +143,7 @@ std::vector<std::array<float, 3>> Misc::sortByMorton(std::vector<std::array<floa
         [](const auto& a, const auto& b) { return a.first < b.first; });
 
     // Extract sorted points
-    std::vector<std::array<float, 3>> sortedInput;
+    std::vector<glm::vec3> sortedInput;
     sortedInput.reserve(input.size());
 
     for (const auto& pair : mortonPairs)
@@ -108,4 +152,30 @@ std::vector<std::array<float, 3>> Misc::sortByMorton(std::vector<std::array<floa
     }
 
     return sortedInput;
+}
+
+std::vector<float> Misc::getExtent(std::vector<glm::vec3> points)
+{
+    glm::vec3 minV = points[0];
+    glm::vec3 maxV = points[0];
+
+    for (glm::vec3 p : points)
+    {
+        minV = glm::min(minV, p);
+        maxV = glm::max(maxV, p);
+    }
+    minV -= glm::vec3(P_R);
+    maxV += glm::vec3(P_R);
+    std::vector<float> output;
+    output.reserve(6);
+    output.insert(output.end(), &minV[0], &minV[0] + 3);
+    output.insert(output.end(), &maxV[0], &maxV[0] + 3);
+   /* output.push_back(minV[0]);
+    output.push_back(minV[1]);
+    output.push_back(minV[2]);
+    output.push_back(maxV[0]);
+    output.push_back(maxV[1]);
+    output.push_back(maxV[2]);*/
+
+    return output;
 }

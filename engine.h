@@ -26,15 +26,10 @@ public:
 	VkQueue computeQueue;
 	void createInstance();
 	void run();
-	float lastFrameTime = 0.0f;
+	double lastFrameTime = 0.0f;
 	double lastTime = 0.0f;
-	glm::vec3 center;
-	glm::vec3 center2;
-	glm::float32 center_mass;
-	glm::float32 center_mass2;
-	glm::float32 grav_const;
-	glm::vec3 reference_axis;
-	bool yes;
+	bool executeLBVH;
+	uint32_t cnt;
 	
 private:
 	GLFW_support glfw_s;
@@ -49,9 +44,6 @@ private:
 	Sync sync;
 	uint32_t currentFrame = 0;
 	PFN_vkCmdSetPrimitiveTopologyEXT vkCmdSetPrimitiveTopologyEXT = nullptr;
-	//float lastFrameTime = 0.0f;
-	//double lastTime = 0.0f;
-	//uint32_t num_frames = 0;
 	
 	const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
 	void updateBufferMapped_uniformMVP(uint32_t currentImage);
@@ -63,8 +55,15 @@ private:
 	void drawFrame();
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 	void recordComputeCommandBuffer(VkCommandBuffer commandBuffer);
+	void recordLBVHComputeCommandBuffer(VkCommandBuffer commandBuffer);
 	//void recordComputeCommandBuffer(VkCommandBuffer commandBuffer);
 	void recreateSwapChain();
 	void cleanup();
+
+	std::vector<float> masses;         
+	std::vector<float> radiuses;       
+	std::vector<float> densities;      
+	std::vector<glm::vec3> positions;
+
 };
 

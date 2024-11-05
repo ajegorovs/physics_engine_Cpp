@@ -25,6 +25,7 @@ public:
 	std::vector<VkBuffer> buffer_physics_attractors;
 	std::vector<VkBuffer> buffer_physics_constants;
 
+	VkBuffer buffer_lbvh_particles;
 	VkBuffer buffer_lbvh_elements;
 	VkBuffer buffer_lbvh_mortonCode;
 	VkBuffer buffer_lbvh_mortonCodePingPong;
@@ -79,7 +80,8 @@ public:
 	//void createBuffer_storageParticles(glm::vec3 mass_center_pos, glm::float32 bigMass, glm::float32 grav_const, glm::vec3 reference_axis);
 	void createBuffer_uniformMVP();
 
-	void createBuffer_lbvh_elementsBuffer(std::vector<std::array<float, 3>> poits2d);
+	void createBuffer_lbvh_points(std::vector<glm::vec3> points, glm::vec3 color);
+	void createBuffer_lbvh_elementsBuffer(std::vector<glm::vec3> points);
 	void createBuffer_lbvh_mortonCode();
 	void createBuffer_lbvh_mortonCodePingPong();
 	void createBuffer_lbvh_LBVH();
@@ -119,6 +121,7 @@ private:
 	std::vector<VkDeviceMemory> bufferMemory_physics_constants;
 	std::vector<VkDeviceMemory> bufferMemory_physics_attractors;
 
+	VkDeviceMemory bufferMemory_lbvh_particles;
 	VkDeviceMemory bufferMemory_lbvh_elements;
 	VkDeviceMemory bufferMemory_lbvh_mortonCode;
 	VkDeviceMemory bufferMemory_lbvh_mortonCodePingPong;

@@ -1,6 +1,7 @@
 #include "lbvh.h"
 
 void BBox::getVerts(
+    glm::vec3 color,
     float minx, float miny, float minz, 
     float maxx, float maxy, float maxz, 
     std::vector<VertexBase>& pVerts)
@@ -31,7 +32,7 @@ void BBox::getVerts(
 
     for (glm::vec3 p : pts)
     {   
-        VertexBase v{ p, glm::vec3(0.0f, 1.0f, 0.0f) };
+        VertexBase v{ p, color };
         pVerts.push_back(v);
     }
 

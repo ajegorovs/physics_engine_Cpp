@@ -37,7 +37,7 @@ struct StructParticleSystemParams
 class Physics {
 
 public:
-	; static glm::vec3 set_circular_orbit_velocity(glm::vec3 mass_center_pos, glm::float32 bigMass, glm::vec3 particle_pos, glm::float32 grav_const, glm::vec3 reference_axis);
+	static glm::vec3 set_circular_orbit_velocity(glm::vec3 mass_center_pos, glm::float32 bigMass, glm::vec3 particle_pos, glm::float32 grav_const, glm::vec3 reference_axis);
 
 	static glm::vec3 rollSphereCoords(float r_min, float r_max, glm::vec3 rolls);
 

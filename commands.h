@@ -7,6 +7,7 @@
 class Commands {
 public:
     VkCommandPool commandPool;
+    VkCommandBuffer commandLBVHComputeBuffer;
     std::vector<VkCommandBuffer> commandBuffers;
     std::vector<VkCommandBuffer> computeCommandBuffers;
     
@@ -19,6 +20,7 @@ public:
     void endSingleTimeCommands(VkQueue graphicsQueue, VkCommandBuffer commandBuffer);
     void createCommandBuffers();
     void createComputeCommandBuffers();
+    void createLBVHComputeCommandBuffer();
     void copyBufferToImage(VkQueue graphicsQueue, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 private:
     VkDevice* pDevice;

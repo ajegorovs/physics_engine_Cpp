@@ -17,6 +17,7 @@ Buffers::Buffers(VkDevice * pDevice, VkPhysicalDevice* physicalDevice, VkCommand
 
 
 void Buffers::processScene(const std::vector<std::unique_ptr<geometric_shape>>& pScene) {
+    // vertices and indices are temporatry pre-buffer storages/accumulators
     float id = 0;
     for (const auto& shape : pScene) {
 
@@ -377,22 +378,42 @@ void Buffers::createBuffer_uniformMVP() {
     }
 }
 
-void Buffers::createBuffer_lbvh_elementsBuffer(std::vector<std::array<float, 3>> poits2d)
+void Buffers::createBuffer_lbvh_points(std::vector<glm::vec3> points, glm::vec3 color)
+{
+    std::vector<point3D> particles;
+    particles.reserve(NUM_ELEMENTS);
+
+    for (glm::vec3 p : points)
+    {
+        point3D v{glm::vec4(color,1.0f), p, glm::vec3(0.0f), glm::vec3(0.0f) , 1.0f, 1.0f, 0.0f};
+        particles.push_back(v);
+    }
+
+    createBufferDeviceLocalData(
+        sizeof(point3D) * NUM_ELEMENTS,
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        buffer_lbvh_particles,
+        bufferMemory_lbvh_particles,
+        static_cast<const void*>(particles.data())
+    );
+}
+
+void Buffers::createBuffer_lbvh_elementsBuffer(std::vector<glm::vec3> points)
 {
     std::vector<Element> particles;
     particles.reserve(NUM_ELEMENTS);
-    float r = 0.005;
+    
     for (uint32_t i = 0; i < NUM_ELEMENTS; i++)
     {
-        std::array<float, 3> p = poits2d[i];
+        glm::vec3 p = points[i];
         Element e;
         e.primitiveIdx = i;
-        e.aabbMinX = p[0] - r; // tested in RenderDoc with 0.1f, 0.2f,...
-        e.aabbMinY = p[1] - r;
-        e.aabbMinZ = p[2] - r;
-        e.aabbMaxX = p[0] + r;
-        e.aabbMaxY = p[1] + r;
-        e.aabbMaxZ = p[2] + r;
+        e.aabbMinX = p[0] - P_R; // tested in RenderDoc with 0.1f, 0.2f,...
+        e.aabbMinY = p[1] - P_R;
+        e.aabbMinZ = p[2] - P_R;
+        e.aabbMaxX = p[0] + P_R;
+        e.aabbMaxY = p[1] + P_R;
+        e.aabbMaxZ = p[2] + P_R;
         particles.push_back(e);
     }
 
@@ -566,41 +587,40 @@ void Buffers::createBuffer_physics_attractors(std::vector<float> masses, std::ve
 }
 
 void Buffers::clearBuffers1(){
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-    }
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroyBuffer(*pDevice, buffer_uniformMVP[i], nullptr);
+        vkFreeMemory(*pDevice, bufferMemory_uniformMVP[i], nullptr);
+    }
+    for (size_t i = 0; i < buffer_storageTransformations.size(); i++) {
         vkDestroyBuffer(*pDevice, buffer_storageTransformations[i], nullptr);
-        vkFreeMemory(   *pDevice, bufferMemory_uniformMVP[i], nullptr);
-        vkFreeMemory(   *pDevice, bufferMemory_storageTransformations[i], nullptr);
-
-        if (ENABLE_PHYSICS) {
-            vkDestroyBuffer(*pDevice, buffer_uniformDeltaTime[i], nullptr);
-            vkDestroyBuffer(*pDevice, buffer_physics_particles[i], nullptr);
-            vkDestroyBuffer(*pDevice, buffer_physics_attractors[i], nullptr);
-            vkDestroyBuffer(*pDevice, buffer_physics_constants[i], nullptr);
-
-            vkFreeMemory(*pDevice, bufferMemory_uniformDeltaTime[i], nullptr);
-            vkFreeMemory(*pDevice, bufferMemory_physics_particles[i], nullptr);
-            vkFreeMemory(*pDevice, bufferMemory_physics_constants[i], nullptr);
-            vkFreeMemory(*pDevice, bufferMemory_physics_attractors[i], nullptr);
-        }
-    if (ENABLE_LVBH)//
-    {
-        /*vkDestroyBuffer(*pDevice, buffer_lbvh_elements, nullptr);
-        vkDestroyBuffer(*pDevice, buffer_lbvh_mortonCode, nullptr);
-        vkDestroyBuffer(*pDevice, buffer_lbvh_mortonCodePingPong, nullptr);
-        vkDestroyBuffer(*pDevice, buffer_lbvh_LBVH, nullptr);
-        vkDestroyBuffer(*pDevice, buffer_lbvh_LBVHConstructionInfo, nullptr);*/
-
-        /*vkFreeMemory(*pDevice, bufferMemory_lbvh_elements, nullptr);
-        vkFreeMemory(*pDevice, bufferMemory_lbvh_mortonCode, nullptr);
-        vkFreeMemory(*pDevice, bufferMemory_lbvh_mortonCodePingPong, nullptr);
-        vkFreeMemory(*pDevice, bufferMemory_lbvh_LBVH, nullptr);
-        vkFreeMemory(*pDevice, bufferMemory_lbvh_LBVHConstructionInfo, nullptr);*/
+        vkFreeMemory(*pDevice, bufferMemory_storageTransformations[i], nullptr);
     }
+    for (size_t i = 0; i < buffer_uniformDeltaTime.size(); i++) {
+        vkDestroyBuffer(*pDevice, buffer_uniformDeltaTime[i], nullptr);
+        vkDestroyBuffer(*pDevice, buffer_physics_particles[i], nullptr);
+        vkDestroyBuffer(*pDevice, buffer_physics_attractors[i], nullptr);
+        vkDestroyBuffer(*pDevice, buffer_physics_constants[i], nullptr);
+
+        vkFreeMemory(*pDevice, bufferMemory_uniformDeltaTime[i], nullptr);
+        vkFreeMemory(*pDevice, bufferMemory_physics_particles[i], nullptr);
+        vkFreeMemory(*pDevice, bufferMemory_physics_constants[i], nullptr);
+        vkFreeMemory(*pDevice, bufferMemory_physics_attractors[i], nullptr);
     }
+    
+    vkDestroyBuffer(*pDevice, buffer_lbvh_elements, nullptr);
+    vkDestroyBuffer(*pDevice, buffer_lbvh_mortonCode, nullptr);
+    vkDestroyBuffer(*pDevice, buffer_lbvh_mortonCodePingPong, nullptr);
+    vkDestroyBuffer(*pDevice, buffer_lbvh_LBVH, nullptr);
+    vkDestroyBuffer(*pDevice, buffer_lbvh_LBVHConstructionInfo, nullptr);
+    vkDestroyBuffer(*pDevice, buffer_lbvh_LBVH_host_vis, nullptr);
+
+    vkFreeMemory(*pDevice, bufferMemory_lbvh_elements, nullptr);
+    vkFreeMemory(*pDevice, bufferMemory_lbvh_mortonCode, nullptr);
+    vkFreeMemory(*pDevice, bufferMemory_lbvh_mortonCodePingPong, nullptr);
+    vkFreeMemory(*pDevice, bufferMemory_lbvh_LBVH, nullptr);
+    vkFreeMemory(*pDevice, bufferMemory_lbvh_LBVHConstructionInfo, nullptr);
+    vkFreeMemory(*pDevice, bufferMemory_lbvh_LBVH_host_vis, nullptr);
 }
 
 void Buffers::clearBuffers2(){
