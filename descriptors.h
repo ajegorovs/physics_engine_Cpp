@@ -16,13 +16,23 @@ public:
 	Descriptors(VkDevice * pDevice);
 
 	void createDescriptorPool();
+	void createDescriptorSetLayout(
+		std::vector<VkDescriptorType> descriptorTypes,
+		std::vector<VkShaderStageFlagBits> shaderStageFlagBits,
+		VkDescriptorSetLayout* pDescriptorSetLayout
+	);
+	void updateDescriptorSets(
+		uint32_t idx,
+		std::vector<VkDescriptorSet> descriptorSets,
+		std::vector<VkDescriptorBufferInfo> descriptorBufferInfos,
+		std::vector<VkDescriptorType> descriptorTypes
+	);
 
 	void createDSL_multi_MPV_TS_TRN(); // Swapchain->createDescriptorPool, createDS_multi_MPV_TS_TRN
 	void createDSL_uniformMVP();		// MVP only
 	void createDSL_1UC_4SC();
 	void createDSL_lbvh();
-	void createDSL_lbvh_transform();
-
+	
 	void createDS_multi_MPV_TS_TRN(std::vector<VkBuffer> uniformBuffers, std::vector<VkBuffer> storageBuffer, VkImageView textureImageView, VkSampler textureSampler);
 	void createDS_uniformMVP(std::vector<VkBuffer>& pUniformBuffer);
 
@@ -33,6 +43,7 @@ public:
 		std::vector<VkBuffer>& pStorageBuffer2, // attractors
 		std::vector<VkBuffer>& pStorageBuffer3  // particle old/new
 	);
+
 	void createDS_lbvh(
 		VkBuffer& bufferElements,  
 		VkBuffer& bufferMortonCode,
@@ -41,8 +52,7 @@ public:
 		VkBuffer& bufferLBVHConstructionInfo,
 		VkBuffer& bufferLBVHParticles
 	);
-	void createDS_lbvh_transform(VkBuffer& bufferParticles, VkBuffer& bufferParticlesBBs);
-
+	
 	void cleanupDSL();
 	void cleanupDPool();
 

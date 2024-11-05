@@ -68,7 +68,6 @@ public:
 		VkBuffer& buffer,
 		VkDeviceMemory& bufferMemory
 	);
-
 	void processScene(const std::vector<std::unique_ptr<geometric_shape>>& pScene);
 	//void processGrid();
 	//void processMortonLines(std::vector<std::array<float, 3>> points, glm::vec3 color, glm::vec3 offset);
