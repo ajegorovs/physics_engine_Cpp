@@ -391,7 +391,7 @@ void Buffers::createBuffer_lbvh_points(std::vector<glm::vec3> points, glm::vec3 
 
     createBufferDeviceLocalData(
         sizeof(point3D) * NUM_ELEMENTS,
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT|VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         buffer_lbvh_particles,
         bufferMemory_lbvh_particles,
         static_cast<const void*>(particles.data())
@@ -608,6 +608,7 @@ void Buffers::clearBuffers1(){
         vkFreeMemory(*pDevice, bufferMemory_physics_attractors[i], nullptr);
     }
     
+    vkDestroyBuffer(*pDevice, buffer_lbvh_particles, nullptr);
     vkDestroyBuffer(*pDevice, buffer_lbvh_elements, nullptr);
     vkDestroyBuffer(*pDevice, buffer_lbvh_mortonCode, nullptr);
     vkDestroyBuffer(*pDevice, buffer_lbvh_mortonCodePingPong, nullptr);
@@ -615,6 +616,7 @@ void Buffers::clearBuffers1(){
     vkDestroyBuffer(*pDevice, buffer_lbvh_LBVHConstructionInfo, nullptr);
     vkDestroyBuffer(*pDevice, buffer_lbvh_LBVH_host_vis, nullptr);
 
+    vkFreeMemory(*pDevice, bufferMemory_lbvh_particles, nullptr);
     vkFreeMemory(*pDevice, bufferMemory_lbvh_elements, nullptr);
     vkFreeMemory(*pDevice, bufferMemory_lbvh_mortonCode, nullptr);
     vkFreeMemory(*pDevice, bufferMemory_lbvh_mortonCodePingPong, nullptr);

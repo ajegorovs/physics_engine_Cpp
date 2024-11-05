@@ -260,7 +260,9 @@ void Descriptors::createDS_lbvh(
     VkBuffer& bufferMortonCode, 
     VkBuffer& bufferMortonCodePingPong, 
     VkBuffer& bufferLBVH, 
-    VkBuffer& bufferLBVHConstructionInfo)
+    VkBuffer& bufferLBVHConstructionInfo,
+    VkBuffer& bufferLBVHParticles
+    )
 {
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -298,6 +300,11 @@ void Descriptors::createDS_lbvh(
     LBVHConstructionInfo_info.buffer = bufferLBVHConstructionInfo;
     LBVHConstructionInfo_info.offset = 0;
     LBVHConstructionInfo_info.range = sizeof(LBVHConstructionInfo) * NUM_LBVH_ELEMENTS;
+
+    VkDescriptorBufferInfo bufferParticleInfo{};
+    bufferParticleInfo.buffer = bufferLBVHParticles;
+    bufferParticleInfo.offset = 0;
+    bufferParticleInfo.range = sizeof(point3D) * NUM_ELEMENTS;
 
     // set 0:
     std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
@@ -391,12 +398,43 @@ void Descriptors::createDS_lbvh(
     descriptorWrites4[1].descriptorCount = 1;
     descriptorWrites4[1].pBufferInfo = &LBVHConstructionInfo_info;
 
+    //set 4:
+    std::array<VkWriteDescriptorSet, 1> descriptorWrites5{};
+    // (4,0) - particles
+    descriptorWrites5[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites5[0].dstSet = descriptorSets_lbvh[4];
+    descriptorWrites5[0].dstBinding = 0;
+    descriptorWrites5[0].dstArrayElement = 0;
+    descriptorWrites5[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorWrites5[0].descriptorCount = 1;
+    descriptorWrites5[0].pBufferInfo = &bufferParticleInfo;
+
+    //set 5:
+    std::array<VkWriteDescriptorSet, 2> descriptorWrites6{};
+    // (5,0) - particles
+    descriptorWrites6[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites6[0].dstSet = descriptorSets_lbvh[5];
+    descriptorWrites6[0].dstBinding = 0;
+    descriptorWrites6[0].dstArrayElement = 0;
+    descriptorWrites6[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorWrites6[0].descriptorCount = 1;
+    descriptorWrites6[0].pBufferInfo = &bufferParticleInfo;
+    // (5,1) - element
+    descriptorWrites6[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites6[1].dstSet = descriptorSets_lbvh[5];
+    descriptorWrites6[1].dstBinding = 1;
+    descriptorWrites6[1].dstArrayElement = 0;
+    descriptorWrites6[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorWrites6[1].descriptorCount = 1;
+    descriptorWrites6[1].pBufferInfo = &bufferElements_info;
+
     vkUpdateDescriptorSets(*pDevice, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
     vkUpdateDescriptorSets(*pDevice, static_cast<uint32_t>(descriptorWrites2.size()), descriptorWrites2.data(), 0, nullptr);
     vkUpdateDescriptorSets(*pDevice, static_cast<uint32_t>(descriptorWrites3.size()), descriptorWrites3.data(), 0, nullptr);
     vkUpdateDescriptorSets(*pDevice, static_cast<uint32_t>(descriptorWrites4.size()), descriptorWrites4.data(), 0, nullptr);
+    vkUpdateDescriptorSets(*pDevice, static_cast<uint32_t>(descriptorWrites5.size()), descriptorWrites5.data(), 0, nullptr);
+    vkUpdateDescriptorSets(*pDevice, static_cast<uint32_t>(descriptorWrites6.size()), descriptorWrites6.data(), 0, nullptr);
 }
-
 
 void Descriptors::createDSL_multi_MPV_TS_TRN()
 {
@@ -508,8 +546,8 @@ void Descriptors::createDSL_1UC_4SC()
 
 void Descriptors::createDSL_lbvh()
 {
-    descriptorSetLayout_lbvh.resize(4);
-    // (set,index): (0,1),(2,1)
+    
+    // (set,index): (0,1),(2,1) |, (5,1)
     VkDescriptorSetLayoutBinding sbo_elem{};
     sbo_elem.binding = 1;
     sbo_elem.descriptorCount = 1;
@@ -551,6 +589,16 @@ void Descriptors::createDSL_lbvh()
     sbo_LBVHConstructionInfo2.descriptorCount = 1;
     sbo_LBVHConstructionInfo2.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     sbo_LBVHConstructionInfo2.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+    // (set,index): (4,0), (5,0)
+    VkDescriptorSetLayoutBinding sbo_particle{};
+    sbo_particle.binding = 0;
+    sbo_particle.descriptorCount = 1;
+    sbo_particle.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    sbo_particle.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+
+    descriptorSetLayout_lbvh.resize(6); // <<<
 
     // Set 0:
     std::array<VkDescriptorSetLayoutBinding, 2> bindings = {
@@ -616,7 +664,39 @@ void Descriptors::createDSL_lbvh()
         throw std::runtime_error("failed to create compute descriptor set layout!");
     }
 
+    // set 4:
+    std::array<VkDescriptorSetLayoutBinding, 1> bindings5 = {
+        sbo_particle,                  // (4,0)
+    };
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo5{};
+    layoutInfo5.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo5.bindingCount = static_cast<uint32_t>(bindings5.size());
+    layoutInfo5.pBindings = bindings5.data();
+
+
+    if (vkCreateDescriptorSetLayout(*pDevice, &layoutInfo5, nullptr, &descriptorSetLayout_lbvh[4]) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create compute descriptor set layout!");
+    }
+
+    // set 5:
+    std::array<VkDescriptorSetLayoutBinding, 2> bindings6 = {
+        sbo_particle,                  // (5,0)
+        sbo_elem                       // (5,1)
+    };
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo6{};
+    layoutInfo6.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo6.bindingCount = static_cast<uint32_t>(bindings6.size());
+    layoutInfo6.pBindings = bindings6.data();
+
+
+    if (vkCreateDescriptorSetLayout(*pDevice, &layoutInfo6, nullptr, &descriptorSetLayout_lbvh[5]) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create compute descriptor set layout!");
+    }
+
 }
+
 
 void Descriptors::cleanupDSL()
 {

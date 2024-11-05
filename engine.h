@@ -28,7 +28,7 @@ public:
 	void run();
 	double lastFrameTime = 0.0f;
 	double lastTime = 0.0f;
-	bool executeLBVH;
+	bool recalculateLBVH;
 	uint32_t cnt;
 	
 private:
@@ -55,7 +55,7 @@ private:
 	void drawFrame();
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 	void recordComputeCommandBuffer(VkCommandBuffer commandBuffer);
-	void recordLBVHComputeCommandBuffer(VkCommandBuffer commandBuffer);
+	void recordLBVHComputeCommandBuffer(VkCommandBuffer commandBuffer, bool recalculate);
 	//void recordComputeCommandBuffer(VkCommandBuffer commandBuffer);
 	void recreateSwapChain();
 	void cleanup();

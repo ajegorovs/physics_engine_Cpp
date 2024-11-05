@@ -14,21 +14,28 @@
 class Compute {
 public:
     VkPipelineLayout computePipelineLayout;
+    VkPipelineLayout computePL_lbvh_particles_update;
+    VkPipelineLayout computePL_lbvh_bounding_box_update;
     VkPipelineLayout computePL_lbvh_morton_codes;
     VkPipelineLayout computePL_lbvh_single_radixsort;
     VkPipelineLayout computePL_lbvh_hierarchy;
     VkPipelineLayout computePL_lbvh_bounding_boxes;
 
     VkPipeline computePipeline;
+    VkPipeline computeP_lbvh_particles_update;
+    VkPipeline computeP_lbvh_bounding_box_update;
     VkPipeline computeP_lbvh_morton_codes;
     VkPipeline computeP_lbvh_single_radixsort;
     VkPipeline computeP_lbvh_hierarchy;
     VkPipeline computeP_lbvh_bounding_boxes;
     Compute();
     Compute(VkDevice* pDevice);
-    void createComputePipeline_particle(VkDescriptorSetLayout* pDescriptorSetLayout);
+    void createComputePipeline_particle(
+        VkDescriptorSetLayout* pDescriptorSetLayout
+    );
     void createComputePipeline_lbvh(
-        std::vector<VkDescriptorSetLayout>& descriptorSetLayouts);
+        std::vector<VkDescriptorSetLayout>& descriptorSetLayouts
+    );
     void cleanup();
 private:
     VkDevice* pDevice;

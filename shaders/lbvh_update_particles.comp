@@ -1,0 +1,54 @@
+
+#version 460
+const float PI = 3.1415926535897932384626433832795;
+struct Particle {
+	vec4 color;
+	vec3 position;
+	vec3 velocity;
+	vec3 acceleration;
+	float mass;
+	float damping;
+	float group_id;
+};
+
+layout (local_size_x = 256) in;
+
+layout (push_constant, std430) uniform PushConstants {
+    float deltaTime;
+	uint g_num_elements;
+	float updateBBs;
+};
+
+layout (std430, set = 4, binding = 0) buffer particles {
+    Particle g_particles[];
+};
+
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+	
+    if (idx >= g_num_elements) {
+        return;
+    }
+
+	vec3 rotationCenter = vec3(0.5, 0.5, 0.5);
+	
+	Particle particle = g_particles[idx];
+	
+	vec3 p_center = particle.position;
+		
+    float angle = 0.05*2*PI*deltaTime;
+    float cosTheta = cos(angle);
+    float sinTheta = sin(angle);
+	
+	vec3 translated = p_center - rotationCenter;
+	
+	float xNew = translated.x * cosTheta - translated.y * sinTheta;
+	float yNew = translated.x * sinTheta + translated.y * cosTheta;
+	float zNew = translated.z;
+	
+	vec3 rotatedPos = vec3(xNew, yNew, zNew);
+	rotatedPos += rotationCenter;
+	
+	g_particles[idx].position = rotatedPos;
+}

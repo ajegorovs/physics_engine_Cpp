@@ -1,3 +1,6 @@
+// https ://developer.nvidia.com/blog/parallelforall/wp-content/uploads/2012/11/karras2012hpg_paper.pdf
+// https://github.com/MircoWerner/VkLBVH
+
 #pragma once
 #include <vector>
 #include <array>
@@ -5,16 +8,7 @@
 #include "structs.h"
 #include <glm/glm.hpp>
 
-/*const  std::vector < std::array<float, 3>> poits2d = {
-        {0.25f, 0.25f, 0.0f},
-        {0.75f, 0.26f, 0.0f},
-        {0.75f, 0.24f, 0.0f},
-        {0.25f, 0.72f, 0.0f},
-        {0.27f, 0.75f, 0.0f},
-        {0.23f, 0.77f, 0.0f},
-
-}*/;
-const float P_R = 0.005f;
+const float P_R = 0.1f;
 //const std::vector<glm::vec3> poits2d =  Misc::seedUniformPoints2D(50);
 //const uint32_t NUM_ELEMENTS = static_cast<uint32_t>(size(poits2d));
 const uint32_t NUM_ELEMENTS = 1000;// glm::pow(10, 3);

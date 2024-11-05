@@ -30,6 +30,12 @@ struct StructDeltaTime
     glm::float32 deltaTime;
 };
 
+struct StructDeltaTimeLBVH
+{
+    glm::float32 deltaTime;
+    uint32_t g_num_elements;
+    glm::float32 updateBoxes;
+};
 
 
 // #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES should deal with glm::X

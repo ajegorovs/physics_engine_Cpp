@@ -99,7 +99,6 @@ void Compute::createComputePipeline_lbvh(
     std::vector<VkDescriptorSetLayout>& descriptorSetLayouts
 )
 {
-    //descriptorSetLayouts.resize(4);
 
     createComputePipeline(
         &computeP_lbvh_morton_codes,
@@ -128,6 +127,20 @@ void Compute::createComputePipeline_lbvh(
         descriptorSetLayouts,
         sizeof(PushConstantsBoundingBoxes),
         "shaders/lbvh_bounding_boxes.spv");
+
+    createComputePipeline(
+        &computeP_lbvh_particles_update,
+        &computePL_lbvh_particles_update,
+        descriptorSetLayouts,
+        sizeof(StructDeltaTimeLBVH),
+        "shaders/lbvh_update_particles.spv");
+
+    createComputePipeline(
+        &computeP_lbvh_bounding_box_update,
+        &computePL_lbvh_bounding_box_update,
+        descriptorSetLayouts,
+        sizeof(StructDeltaTimeLBVH),
+        "shaders/lbvh_update_boxes.spv");
 }
 
 
@@ -136,10 +149,14 @@ void Compute::cleanup()
     vkDestroyPipeline(*pDevice, computePipeline, nullptr);
     vkDestroyPipelineLayout(*pDevice, computePipelineLayout, nullptr);
 
+    vkDestroyPipeline(*pDevice, computeP_lbvh_particles_update, nullptr);
+    vkDestroyPipeline(*pDevice, computeP_lbvh_bounding_box_update, nullptr);
     vkDestroyPipeline(*pDevice, computeP_lbvh_morton_codes, nullptr);
     vkDestroyPipeline(*pDevice, computeP_lbvh_single_radixsort, nullptr);
     vkDestroyPipeline(*pDevice, computeP_lbvh_hierarchy, nullptr);
     vkDestroyPipeline(*pDevice, computeP_lbvh_bounding_boxes, nullptr);
+    vkDestroyPipelineLayout(*pDevice, computePL_lbvh_particles_update, nullptr);
+    vkDestroyPipelineLayout(*pDevice, computePL_lbvh_bounding_box_update, nullptr);
     vkDestroyPipelineLayout(*pDevice, computePL_lbvh_morton_codes, nullptr);
     vkDestroyPipelineLayout(*pDevice, computePL_lbvh_single_radixsort, nullptr);
     vkDestroyPipelineLayout(*pDevice, computePL_lbvh_hierarchy, nullptr);
