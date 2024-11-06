@@ -19,6 +19,7 @@ struct Element {
     float aabbMaxX;
     float aabbMaxY;
     float aabbMaxZ;
+	float mass;
 };
 
 layout (local_size_x = 256) in;
@@ -48,13 +49,14 @@ void main() {
 	vec3 bbOffset = vec3(r,r,r);
 	vec3 bbMin = particle.position - bbOffset;
 	vec3 bbMax = particle.position + bbOffset;
-
+	float mass = particle.mass;
 	g_elements[idx].aabbMinX = bbMin.x;
 	g_elements[idx].aabbMinY = bbMin.y;
 	g_elements[idx].aabbMinZ = bbMin.z;
 	g_elements[idx].aabbMaxX = bbMax.x;
 	g_elements[idx].aabbMaxY = bbMax.y;
 	g_elements[idx].aabbMaxZ = bbMax.z;
+	g_elements[idx].mass = mass;
 	
 
 }

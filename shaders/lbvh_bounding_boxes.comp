@@ -84,6 +84,12 @@ void main() {
         bvhNode.aabbMaxX = maxAABB.x;
         bvhNode.aabbMaxY = maxAABB.y;
         bvhNode.aabbMaxZ = maxAABB.z;
+		float total_mass = bvhNodeChildA.mass + bvhNodeChildB.mass;
+		bvhNode.mass = total_mass;
+		vec3 center = 1/total_mass*( bvhNodeChildA.mass * vec3(bvhNodeChildA.cx,bvhNodeChildA.cy,bvhNodeChildA.cz) + bvhNodeChildB.mass * vec3(bvhNodeChildB.cx,bvhNodeChildB.cy,bvhNodeChildB.cz));
+		bvhNode.cx = center[0];
+		bvhNode.cy = center[1];
+		bvhNode.cz = center[2];
         g_lbvh[nodeIdx] = bvhNode;
         if (nodeIdx == 0) {
             return;

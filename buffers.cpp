@@ -385,18 +385,43 @@ void Buffers::createBuffer_lbvh_points(std::vector<glm::vec3> points, glm::vec3 
 
     for (glm::vec3 p : points)
     {
-        point3D v{glm::vec4(color,1.0f), p, glm::vec3(0.0f), glm::vec3(0.0f) , 1.0f, 1.0f, 0.0f};
+        glm::vec3 d = glm::vec3(0.5f,0.5f,0.5f) - p;
+        glm::float32 dist = glm::length(d);
+        glm::vec3 vel_dir = glm::normalize(glm::cross(d, glm::vec3(0.0f,0.0f,1.0f)));
+        // num particles at center (volume of 4/3 pi dist^3) is dist^3/R^3 * N = dist^3/(1/2)^3*N = 2^3*dist^3*N
+        glm::vec3 orbital_vel = vel_dir * glm::sqrt(NUM_ELEMENTS * 8.0f * dist*dist*dist* GRAV_CONST / (dist + 0.000001f));
+
+        //glm::vec3 orbital_vel = glm::normalize(d);// (0.0f, 0.0f, 0.0f);
+        //glm::vec3 orbital_vel(0.007f, 0.008f, 0.0009f);
+        //glm::vec3 accel(0.0045f, 0.0046f, 0.0047f);
+        glm::vec3 accel(0.0f);
+        point3D v{glm::vec4(color,1.0f), p, 0.005f*orbital_vel, accel , 1.0f, 1.0f, 0.0f};
         particles.push_back(v);
     }
 
     createBufferDeviceLocalData(
         sizeof(point3D) * NUM_ELEMENTS,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT|VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT|VK_BUFFER_USAGE_VERTEX_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         buffer_lbvh_particles,
         bufferMemory_lbvh_particles,
         static_cast<const void*>(particles.data())
     );
 }
+
+void Buffers::createBuffer_lbvh_points_host_vis()
+{
+    VkDeviceSize size = sizeof(point3D) * NUM_ELEMENTS;
+    createBuffer(
+        size,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        buffer_lbvh_particles_host_vis,
+        bufferMemory_lbvh_particles_host_vis);
+
+    vkMapMemory(*pDevice, bufferMemory_lbvh_particles_host_vis, 0,
+        size, 0, &bufferMapped_lbvh_particles_host_vis);
+}
+
 
 void Buffers::createBuffer_lbvh_elementsBuffer(std::vector<glm::vec3> points)
 {
@@ -414,6 +439,7 @@ void Buffers::createBuffer_lbvh_elementsBuffer(std::vector<glm::vec3> points)
         e.aabbMaxX = p[0] + P_R;
         e.aabbMaxY = p[1] + P_R;
         e.aabbMaxZ = p[2] + P_R;
+        e.mass = 1.0f;
         particles.push_back(e);
     }
 

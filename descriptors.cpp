@@ -492,14 +492,13 @@ void Descriptors::createDescriptorSetLayout(
         descriptorSetLayoutBindings.push_back(binding);
     }
 
-
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layoutInfo.bindingCount = num_bindings;
     layoutInfo.pBindings = descriptorSetLayoutBindings.data();
 
     if (vkCreateDescriptorSetLayout(*pDevice, &layoutInfo, nullptr, pDescriptorSetLayout) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create compute descriptor set layout!");
+        throw std::runtime_error("failed to create a descriptor set layout!");
     }
 }
 void Descriptors::createDSL_lbvh()

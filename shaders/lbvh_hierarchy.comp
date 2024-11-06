@@ -111,8 +111,13 @@ void main() {
 
     // construct leaf nodes
     if (gID < g_num_elements) {
-        Element element = g_elements[g_sorted_morton_codes[gID].elementIdx];
-        g_lbvh[LEAF_OFFSET + gID] = LBVHNode(INVALID_POINTER, INVALID_POINTER, element.primitiveIdx, element.aabbMinX, element.aabbMinY, element.aabbMinZ, element.aabbMaxX, element.aabbMaxY, element.aabbMaxZ);
+		Element element = g_elements[g_sorted_morton_codes[gID].elementIdx];
+		vec3 center = 0.5f*vec3(element.aabbMaxX + element.aabbMinX, element.aabbMaxY + element.aabbMinY, element.aabbMaxZ + element.aabbMinZ);
+        g_lbvh[LEAF_OFFSET + gID] = LBVHNode(
+		INVALID_POINTER, INVALID_POINTER, element.primitiveIdx, 
+		element.aabbMinX, element.aabbMinY, element.aabbMinZ, 
+		element.aabbMaxX, element.aabbMaxY, element.aabbMaxZ,
+		element.mass, center[0], center[1], center[2]);
     }
 
     // construct internal nodes
@@ -144,9 +149,9 @@ void main() {
 
         // record parent-child relationships
         if (g_absolute_pointers != 0) {
-            g_lbvh[gID] = LBVHNode(childA, childB, 0, 0, 0, 0, 0, 0, 0);
+            g_lbvh[gID] = LBVHNode(childA, childB, 0, 0, 0, 0, 0, 0, 0, 0, 0,0,0);
         } else {
-            g_lbvh[gID] = LBVHNode(childA - int(gID), childB - int(gID), 0, 0, 0, 0, 0, 0, 0);
+            g_lbvh[gID] = LBVHNode(childA - int(gID), childB - int(gID), 0, 0, 0, 0, 0, 0, 0, 0, 0,0,0);
         }
         g_lbvh_construction_infos[childA] = LBVHConstructionInfo(gID, 0);
         g_lbvh_construction_infos[childB] = LBVHConstructionInfo(gID, 0);

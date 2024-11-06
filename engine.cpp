@@ -95,6 +95,7 @@ void Engine::run()
         const std::vector<glm::vec3> points3d = Misc::seedUniformSpherePoints3D(NUM_ELEMENTS);
         //std::vector<glm::vec3> points3d = Misc::sortByMorton(points3d_0);
         bfr.createBuffer_lbvh_points(points3d, glm::vec3(0.0f, 0.0f, 1.0f));
+        bfr.createBuffer_lbvh_points_host_vis();
         bfr.createBuffer_lbvh_elementsBuffer(points3d);
         bfr.createBuffer_lbvh_mortonCode();
         bfr.createBuffer_lbvh_mortonCodePingPong();
@@ -269,7 +270,7 @@ void Engine::updateBufferMapped_uniformMVP(uint32_t currentImage) {
     ubo.model = glm::translate(
         glm::rotate(
             glm::mat4(1.0f), 
-            0.03f * time * glm::radians(90.0f), 
+            0.0f*0.03f * time * glm::radians(90.0f), 
             glm::vec3(0.0f, 0.0f, 1.0f)
         ),
         -glm::vec3(0.5f,0.5f,0.5f)
@@ -368,16 +369,18 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
         vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_POINT_LIST);
 
         vkCmdDraw(commandBuffer, NUM_ELEMENTS, 1, 0, 0);
-        // --------------------
+        if (DRAW_BBS) {
+            // --------------------
 
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.graphicsPipeline_lines);
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.graphicsPipeline_lines);
 
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &bfr.buffer_lines, offsets);
+            vkCmdBindVertexBuffers(commandBuffer, 0, 1, &bfr.buffer_lines, offsets);
 
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.pipelineLayout_lines, 0, 1, &dscr.descriptorSets_uniformMVP[currentFrame], 0, nullptr);
-        vkCmdSetLineWidth(commandBuffer, 1.0f);
-        vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
-        vkCmdDraw(commandBuffer, NUM_BB_POINTS, 1, 0, 0);
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.pipelineLayout_lines, 0, 1, &dscr.descriptorSets_uniformMVP[currentFrame], 0, nullptr);
+            vkCmdSetLineWidth(commandBuffer, 1.0f);
+            vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+            vkCmdDraw(commandBuffer, NUM_BB_POINTS, 1, 0, 0);
+        }
     }
 
     if (ENABLE_POLY)
@@ -438,37 +441,12 @@ void Engine::recordLBVHComputeCommandBuffer(VkCommandBuffer commandBuffer, bool 
         throw std::runtime_error("failed to begin recording LBVH compute command buffer!");
     }
     // ====================== LBVH ========================
-    const StructDeltaTimeLBVH pushDeltaTime{ lastFrameTime, NUM_ELEMENTS , 1.0f };//lastTime//lastFrameTime
     uint32_t size = static_cast<uint32_t>(dscr.descriptorSets_lbvh.size());
     uint32_t x = (NUM_ELEMENTS + 256 - 1) / 256;
     uint32_t y = (256 + 256 - 1) / 256;
 
-    if (!false) {
-        // ------ update particle positions from compute shader. for demonstration.
-        
-        vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_particles_update, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(StructDeltaTimeLBVH), &pushDeltaTime);
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_particles_update);
-
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_particles_update, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
-        vkCmdDispatch(commandBuffer, x, 1, 1);
-
-        VkMemoryBarrier memoryBarrierZ{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
-
-        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrierZ, 0, nullptr, 0, nullptr);
-    }
     if (recalculate) {
-        if (!false) {
-            // ---------------- Update Bounding Boxes ---------------
-            vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_bounding_box_update, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(StructDeltaTimeLBVH), &pushDeltaTime);
-            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_bounding_box_update);
 
-            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_bounding_box_update, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
-            vkCmdDispatch(commandBuffer, x, 1, 1);
-
-            VkMemoryBarrier memoryBarrierX{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
-
-            vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrierX, 0, nullptr, 0, nullptr);
-        }
         // -------------- Generate Morton Codes ---------------
 
         vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_morton_codes, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsMortonCodes), &pushConstMC);
@@ -533,6 +511,10 @@ void Engine::recordLBVHComputeCommandBuffer(VkCommandBuffer commandBuffer, bool 
         vkCmdCopyBuffer(commandBuffer, bfr.buffer_lbvh_LBVH, bfr.buffer_lbvh_LBVH_host_vis, 1, &copyRegion);
     }
 
+    // copy particle data to host
+    VkBufferCopy copyRegion{ 0,0, sizeof(point3D) * NUM_ELEMENTS };
+    vkCmdCopyBuffer(cmd.commandLBVHComputeBuffer, bfr.buffer_lbvh_particles, bfr.buffer_lbvh_particles_host_vis, 1, &copyRegion);
+
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to record LBVH compute command buffer!");
     }
@@ -584,7 +566,7 @@ void Engine::drawFrame() {
         };
     }
 
-    recalculateLBVH = cnt % 100 == 0;
+    recalculateLBVH = cnt % 1 == 0;
     if (ENABLE_LVBH) {
         vkWaitForFences(device, 1, &sync.lbvhComputeFence, VK_TRUE, UINT64_MAX);
 
@@ -606,13 +588,13 @@ void Engine::drawFrame() {
         };
         vkQueueWaitIdle(computeQueue);
 
-        // ---------------- Draw bounding boxes!!! ------------------------
-        // update line buffer only if they were recalcualted
-        if (recalculateLBVH) {
-            std::vector<LBVHNode> nodes(NUM_LBVH_ELEMENTS); // Allocate vector to hold the copied data
-            VkDeviceSize bSize = sizeof(LBVHNode) * NUM_LBVH_ELEMENTS;
-            std::memcpy(nodes.data(), bfr.bufferMapped_lbvh_LBVH_hist_vis, sizeof(LBVHNode) * NUM_LBVH_ELEMENTS);
+        // 1. copy particle and LBVH node data to CPU (second stage- to array:
+        
+        std::vector<LBVHNode> nodes(NUM_LBVH_ELEMENTS); // Allocate vector to hold the copied data
+        std::memcpy(nodes.data(), bfr.bufferMapped_lbvh_LBVH_hist_vis, sizeof(LBVHNode) * NUM_LBVH_ELEMENTS);
 
+        // 2.a get BB edges for visualization. deposit to line vertex buffer.
+        if (recalculateLBVH & DRAW_BBS) { // update buffer with BB lines. do it only after LBVH update.
             std::vector<VertexBase> verts;
             verts.reserve(NUM_BB_POINTS);
 
@@ -642,7 +624,136 @@ void Engine::drawFrame() {
             }
 
             std::memcpy(bfr.bufferMapped_lines, verts.data(), sizeof(VertexBase) * NUM_BB_POINTS);
+
+            }
+
+        // transfer points to workable cpu adress
+        std::vector<point3D> points(NUM_ELEMENTS); // Allocate vector to hold the copied data
+        std::memcpy(points.data(), bfr.bufferMapped_lbvh_particles_host_vis, sizeof(point3D)* NUM_ELEMENTS);
+
+
+        // 2.b update particle forces by traversing LBVH tree on CPU :(
+        uint32_t firstNodeIndex = NUM_ELEMENTS - 1;
+
+        std::vector<uint32_t> queue_prev;
+        queue_prev.reserve(NUM_ELEMENTS - 1);
+        std::vector<uint32_t> queue_this;
+        queue_this.reserve(NUM_ELEMENTS - 1);
+
+        for (uint32_t i = 0; i < NUM_ELEMENTS; i++)
+        {
+            LBVHNode node = nodes[firstNodeIndex + i];
+            uint32_t trueID = node.primitiveIdx;
+            glm::vec3 c(node.cx, node.cy, node.cz);
+            glm::vec3 force(0.0f, 0.0f, 0.0f);
+            uint32_t level = 0;
+            uint32_t evals = 0;
+            queue_prev.push_back(0);
+            while (queue_prev.size() > 0)
+            {
+
+                for (uint32_t n : queue_prev)
+                {
+                    float dx = nodes[n].aabbMaxX - nodes[n].aabbMinX;
+                    float dy = nodes[n].aabbMaxY - nodes[n].aabbMinY;
+                    float dz = nodes[n].aabbMaxZ - nodes[n].aabbMinZ;
+                    float s = glm::length(glm::vec3(dx, dy, dz));
+                    glm::vec3 n_c(nodes[n].cx, nodes[n].cy, nodes[n].cz);
+                    glm::vec3 distV = n_c - c;
+                    float dist = glm::length(distV);
+                    float theta = s / dist;
+
+
+                    if (theta >= 0.5)
+                    {
+                        uint32_t left = nodes[n].left;
+                        uint32_t right = nodes[n].right;
+
+                        if (left < firstNodeIndex)
+                            queue_this.push_back(left);
+                        if (right < firstNodeIndex)
+                            queue_this.push_back(right);
+                    }
+                    else
+                    {
+                        //std::cout << "level: " << level << " | node: " << n << " | s = " << s << " | dist = " << dist << " | theta = " << theta << std::endl;
+                        force -= nodes[n].mass * GRAV_CONST * distV / (dist * dist * dist + 0.00001f);
+                        evals++;
+                    }
+                }
+                queue_prev = queue_this;
+                queue_this.clear();
+                level++;
+
+
+            }
+            //std::cout << " | node: " << i<< " | force evals= " << evals << " | pos = " << c << " | force total = " << force << std::endl;
+            points[trueID].acceleration = force; // given mass = 1 <<<<<<<<<<<<<<
+            queue_prev.clear();
+            queue_this.clear();
         }
+
+        // 3.1 get updated particle data to device. again, in two stages
+        std::memcpy(bfr.bufferMapped_lbvh_particles_host_vis, points.data(), sizeof(point3D) * NUM_ELEMENTS);
+        // request copy data to device.
+        vkResetCommandBuffer(cmd.commandLBVHComputeBuffer, /*VkCommandBufferResetFlagBits*/ 0);
+        submitInfo = {};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &cmd.commandLBVHComputeBuffer;
+
+        VkCommandBufferBeginInfo beginInfo2{};
+        beginInfo2.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+        if (vkBeginCommandBuffer(cmd.commandLBVHComputeBuffer, &beginInfo2) != VK_SUCCESS) {
+            throw std::runtime_error("failed to begin recording LBVH compute command buffer!");
+        }
+
+        VkBufferCopy copyRegion2{ 0,0, sizeof(point3D) * NUM_ELEMENTS };
+        vkCmdCopyBuffer(cmd.commandLBVHComputeBuffer, bfr.buffer_lbvh_particles_host_vis, bfr.buffer_lbvh_particles, 1, &copyRegion2);
+
+        // 3.2 we can use same command buffer to launch particle force integration on GPU.
+
+        const StructDeltaTimeLBVH pushDeltaTime{ lastFrameTime, NUM_ELEMENTS , 1.0f };//lastTime//lastFrameTime
+        //std::cout << lastFrameTime << std::endl;
+        uint32_t size = static_cast<uint32_t>(dscr.descriptorSets_lbvh.size());
+        uint32_t x = (NUM_ELEMENTS + 256 - 1) / 256;
+
+        // ------ update particle positions from compute shader. for demonstration.
+
+        vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_particles_update, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(StructDeltaTimeLBVH), &pushDeltaTime);
+        vkCmdBindPipeline(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_particles_update);
+
+        vkCmdBindDescriptorSets(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_particles_update, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
+        vkCmdDispatch(cmd.commandLBVHComputeBuffer, x, 1, 1);
+
+        VkMemoryBarrier memoryBarrierZ{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
+
+        vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrierZ, 0, nullptr, 0, nullptr);
+        
+        if (recalculateLBVH) {
+
+            // ---------------- Update Bounding Boxes ---------------
+            vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_bounding_box_update, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(StructDeltaTimeLBVH), &pushDeltaTime);
+            vkCmdBindPipeline(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_bounding_box_update);
+
+            vkCmdBindDescriptorSets(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_bounding_box_update, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
+            vkCmdDispatch(cmd.commandLBVHComputeBuffer, x, 1, 1);
+
+            VkMemoryBarrier memoryBarrierX{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
+
+            vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrierX, 0, nullptr, 0, nullptr);
+
+        }
+        if (vkEndCommandBuffer(cmd.commandLBVHComputeBuffer) != VK_SUCCESS) {
+            throw std::runtime_error("failed to record LBVH compute command buffer!");
+        }
+
+        if (vkQueueSubmit(computeQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
+            throw std::runtime_error("failed to submit LBVH compute command buffer!");
+        };
+        vkQueueWaitIdle(computeQueue);
+
     }
     
     // Graphics submission

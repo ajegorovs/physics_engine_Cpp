@@ -219,6 +219,7 @@ struct Element {
     float aabbMaxX;
     float aabbMaxY;
     float aabbMaxZ;
+    float mass;
 };
 
 // output of the builder; it is necessary to allocate the (empty) buffer on the GPU
@@ -232,6 +233,10 @@ struct LBVHNode {
     float aabbMaxX;
     float aabbMaxY;
     float aabbMaxZ;
+    float mass;
+    float cx;
+    float cy;
+    float cz;
 };
 
 // only used on the GPU side during construction; it is necessary to allocate the (empty) buffer on the GPU

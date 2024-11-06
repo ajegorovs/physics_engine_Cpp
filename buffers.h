@@ -26,6 +26,7 @@ public:
 	std::vector<VkBuffer> buffer_physics_constants;
 
 	VkBuffer buffer_lbvh_particles;
+	VkBuffer buffer_lbvh_particles_host_vis;
 	VkBuffer buffer_lbvh_elements;
 	VkBuffer buffer_lbvh_mortonCode;
 	VkBuffer buffer_lbvh_mortonCodePingPong;
@@ -34,6 +35,7 @@ public:
 	VkBuffer buffer_lbvh_LBVH_host_vis;
 
 	VkDeviceMemory bufferMemory_lbvh_LBVH_host_vis;
+	VkDeviceMemory bufferMemory_lbvh_particles_host_vis;
 
 
 	Buffers();
@@ -80,6 +82,7 @@ public:
 	void createBuffer_uniformMVP();
 
 	void createBuffer_lbvh_points(std::vector<glm::vec3> points, glm::vec3 color);
+	void createBuffer_lbvh_points_host_vis();
 	void createBuffer_lbvh_elementsBuffer(std::vector<glm::vec3> points);
 	void createBuffer_lbvh_mortonCode();
 	void createBuffer_lbvh_mortonCodePingPong();
@@ -104,6 +107,7 @@ public:
 
 	void* bufferMapped_lines;
 	void* bufferMapped_lbvh_LBVH_hist_vis;
+	void* bufferMapped_lbvh_particles_host_vis;
 
 	VkBuffer vertexBuffer;
 	VkBuffer indexBuffer;
