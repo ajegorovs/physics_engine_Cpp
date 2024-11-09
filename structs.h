@@ -34,7 +34,6 @@ struct StructDeltaTimeLBVH
 {
     glm::float32 deltaTime;
     uint32_t g_num_elements;
-    glm::float32 updateBoxes;
 };
 
 

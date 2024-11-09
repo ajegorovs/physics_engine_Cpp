@@ -155,6 +155,10 @@ void main() {
         }
         g_lbvh_construction_infos[childA] = LBVHConstructionInfo(gID, 0);
         g_lbvh_construction_infos[childB] = LBVHConstructionInfo(gID, 0);
+		//g_lbvh_construction_infos[childA].parent = gID;
+        //g_lbvh_construction_infos[childB].parent = gID;
+		//g_lbvh_construction_infos[childA].visitationCount = 0;
+        //g_lbvh_construction_infos[childB].visitationCount = 0;
     }
 
     // node 0 is the root

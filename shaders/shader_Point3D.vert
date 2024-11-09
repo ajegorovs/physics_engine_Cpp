@@ -30,6 +30,13 @@ void main() {
 
     gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 1.0);
     fragColor = inColor;
-	gl_PointSize = 5.0;
+	if (float(group_id) == 3.0f)
+	{
+		gl_PointSize = 18.0;
+	}
+	else
+	{
+		gl_PointSize = 8.0;
+	}
 
 }

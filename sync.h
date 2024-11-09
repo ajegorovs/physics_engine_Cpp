@@ -11,6 +11,7 @@ public:
 	std::vector<VkSemaphore> renderFinishedSemaphores;
 	std::vector<VkSemaphore> computeFinishedSemaphores;
 	VkSemaphore	lbvhComputeSemaphore;
+	VkSemaphore	lbvhComputeSemaphore2;
 
 	std::vector<VkFence> inFlightFences;
 	std::vector<VkFence> computeInFlightFences;

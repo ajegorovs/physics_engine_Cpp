@@ -1,10 +1,11 @@
 #include "misc.h"
 #include "lbvh.h"
+#include "config.h"
 #include <fstream>  
-#include <random>  
-#include <array>  
-#include <algorithm> 
-#include "physics.h" 
+//#include <random>  
+//#include <array>  
+//#include <algorithm> 
+#include <sstream>
 //#include <iostream>
 
 
@@ -62,6 +63,20 @@ unsigned int Misc::morton3D(float x, float y, float z)
     return xx * 4 + yy * 2 + zz;
 }
 
+glm::vec3 Misc::rollSphereCoords(float r_min, float r_max, glm::vec3 rolls) {
+
+    float pi = glm::pi<float>();
+    float r = (r_max - r_min) * rolls[0] + r_min;
+    float theta = pi * rolls[1];
+    float phi = 2 * pi * rolls[2];
+
+    return glm::vec3(
+        r * glm::sin(theta) * glm::cos(phi),
+        r * glm::sin(theta) * glm::sin(phi),
+        r * glm::cos(theta)
+    );
+}
+
 std::vector<glm::vec3> Misc::seedUniformPoints2D(const int N)
 {
     std::vector<glm::vec3> output;
@@ -115,14 +130,13 @@ std::vector<glm::vec3> Misc::seedUniformSpherePoints3D(const int N)
         float a = rndDist(rndEngine);
         float b = rndDist(rndEngine);
         float c = rndDist(rndEngine);
-        glm::vec3 p = Physics::rollSphereCoords(0.0f, 0.5f, glm::vec3(a, b, c));
+        glm::vec3 p = rollSphereCoords(0.3f, 0.5f, glm::vec3(a, b, c));
         p += glm::vec3(0.5f, 0.5f, 0.5f);
         //std::cout << p[0] << " " << p[1] << " " << p[2] << std::endl;
         points.push_back(p);
     }
     return points;
 }
-
 
 
 // Assume Misc::morton3D function is defined elsewhere
@@ -178,4 +192,43 @@ std::vector<float> Misc::getExtent(std::vector<glm::vec3> points)
     output.push_back(maxV[2]);*/
 
     return output;
+}
+
+
+std::vector<MortonCodeElement> Misc::importFromCSV(const std::string& filename) {
+    std::vector<MortonCodeElement> elements;
+    std::ifstream myfile(filename);
+
+    if (!myfile.is_open()) {
+        std::cerr << "Error: Could not open file " << filename << std::endl;
+        return elements; // Return an empty vector
+    }
+
+    std::string line;
+    bool skipHeader = true;
+
+    while (std::getline(myfile, line)) {
+        if (skipHeader) {
+            skipHeader = false;  // Skip the header line
+            continue;
+        }
+
+        std::istringstream ss(line);
+        MortonCodeElement element;
+        std::string value;
+
+        // Read the mortonCode
+        if (std::getline(ss, value, ',')) {
+            element.mortonCode = std::stoul(value);
+        }
+
+        // Read the elementIdx
+        if (std::getline(ss, value, ',')) {
+            element.elementIdx = std::stoul(value);
+        }
+
+        elements.push_back(element);
+    }
+
+    myfile.close();
 }

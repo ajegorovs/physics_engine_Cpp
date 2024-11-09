@@ -14,6 +14,8 @@
 #include "buffers.h"
 #include "commands.h"
 #include "sync.h"
+#include "lbvh.h"
+#include "shader.h"
 
 class Engine {
 public:
@@ -29,7 +31,10 @@ public:
 	double lastFrameTime = 0.0f;
 	double lastTime = 0.0f;
 	bool recalculateLBVH;
+	bool recalculateBBs;
 	uint32_t cnt;
+	PushConstantsMortonCodes pushConstMC{ NUM_ELEMENTS, -10.0f*P_R , -10.0f * P_R, -10.0f * P_R , 1.0f + 10.0f * P_R , 1.0f + 10.0f * P_R , 1.0f + 10.0f * P_R };
+
 	
 private:
 	GLFW_support glfw_s;
@@ -42,6 +47,8 @@ private:
 	Buffers bfr;
 	Commands cmd;
 	Sync sync;
+	Shader shdr;
+	bool gotAtleatOneLVBH = false;
 	uint32_t currentFrame = 0;
 	PFN_vkCmdSetPrimitiveTopologyEXT vkCmdSetPrimitiveTopologyEXT = nullptr;
 	
@@ -56,9 +63,11 @@ private:
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 	void recordComputeCommandBuffer(VkCommandBuffer commandBuffer);
 	void recordLBVHComputeCommandBuffer(VkCommandBuffer commandBuffer, bool recalculate);
+	void recordLBVHComputeCommandBuffer2(VkCommandBuffer commandBuffer, bool recalculate);
 	//void recordComputeCommandBuffer(VkCommandBuffer commandBuffer);
 	void recreateSwapChain();
 	void cleanup();
+	void traverse(uint32_t index, LBVHNode* LBVH, std::vector<int>& visited);
 
 	std::vector<float> masses;         
 	std::vector<float> radiuses;       

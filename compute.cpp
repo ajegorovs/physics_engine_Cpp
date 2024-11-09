@@ -19,7 +19,6 @@ void Compute::createComputePipeline_particle(VkDescriptorSetLayout* pDescriptorS
 }
 
 
-
 void Compute::createComputePipeline(VkPipeline* pComputePipeline, VkPipelineLayout* pPipelineLayout, VkDescriptorSetLayout* pDescriptorSetLayout, std::string shaderDir)
 {
     auto computeShaderCode = Misc::readFile(shaderDir);

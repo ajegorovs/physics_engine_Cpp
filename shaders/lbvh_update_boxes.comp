@@ -27,7 +27,6 @@ layout (local_size_x = 256) in;
 layout (push_constant, std430) uniform PushConstants {
     float deltaTime;
 	uint g_num_elements;
-	float updateBBs;
 };
 
 layout (std430, set = 5, binding = 0) readonly buffer particles {
@@ -46,7 +45,7 @@ void main() {
     }
 	Particle particle = g_particles[idx];
 	float r = 0.005;
-	vec3 bbOffset = vec3(r,r,r);
+	vec3 bbOffset = 10.0f*vec3(r,r,r);
 	vec3 bbMin = particle.position - bbOffset;
 	vec3 bbMax = particle.position + bbOffset;
 	float mass = particle.mass;

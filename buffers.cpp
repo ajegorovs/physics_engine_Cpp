@@ -3,6 +3,7 @@
 #include "commands.h"
 #include "physics.h"
 #include "lbvh.h"
+#include "enable_stuff.h"
 #include <iostream>
 #include <cstdint>
 #include <algorithm>
@@ -145,15 +146,13 @@ void Buffers::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize si
 }
 
 void Buffers::createBufferDeviceLocalData(
-    VkDeviceSize size,
+    VkDeviceSize bufferSize,
     VkBufferUsageFlags usage,
     std::vector<VkBuffer>& buffer,
     std::vector<VkDeviceMemory>& bufferMemory,
     const void* ptr
 ) 
 {
-    VkDeviceSize bufferSize = size;
-
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
     createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
@@ -182,14 +181,12 @@ void Buffers::createBufferDeviceLocalData(
 }
 
 void Buffers::createBufferDeviceLocalData(
-    VkDeviceSize size,
+    VkDeviceSize bufferSize,
     VkBufferUsageFlags usage,
     std::vector<VkBuffer>& buffer,
     std::vector<VkDeviceMemory>& bufferMemory
 )
 {
-    VkDeviceSize bufferSize = size;
-
     buffer.resize(MAX_FRAMES_IN_FLIGHT);
     bufferMemory.resize(MAX_FRAMES_IN_FLIGHT);
 
@@ -203,16 +200,37 @@ void Buffers::createBufferDeviceLocalData(
             bufferMemory[i]);
     }
 }
+
 void Buffers::createBufferDeviceLocalData(
-    VkDeviceSize size,
+    VkDeviceSize bufferSize,
+    VkBufferUsageFlags usage, 
+    VkBuffer& buffer, 
+    VkDeviceMemory& bufferMemory, 
+    const void* pStagingMap, 
+    VkBuffer& stagingBuffer, 
+    const void* pData
+)
+{
+    memcpy(&pData, pStagingMap, (size_t)bufferSize);
+
+    createBuffer(
+        bufferSize,
+        usage | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        buffer,
+        bufferMemory);
+
+    copyBuffer(stagingBuffer, buffer, bufferSize);
+}
+
+void Buffers::createBufferDeviceLocalData(
+    VkDeviceSize bufferSize,
     VkBufferUsageFlags usage,
     VkBuffer& buffer,
     VkDeviceMemory& bufferMemory,
     const void* ptr
 )
 {
-    VkDeviceSize bufferSize = size;
-
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
     createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
@@ -380,22 +398,28 @@ void Buffers::createBuffer_uniformMVP() {
 
 void Buffers::createBuffer_lbvh_points(std::vector<glm::vec3> points, glm::vec3 color)
 {
+    // is wrong. use other methods.
     std::vector<point3D> particles;
     particles.reserve(NUM_ELEMENTS);
-
+    float mass = 1 / static_cast<float>(NUM_ELEMENTS);
+    //float angular_vel = 1.0f*2*glm::pi<float>();
     for (glm::vec3 p : points)
     {
-        glm::vec3 d = glm::vec3(0.5f,0.5f,0.5f) - p;
+        glm::vec3 d = - glm::vec3(0.5f,0.5f,0.5f) + p;
+        d[2] = 0.0f; // consider x-y plane
         glm::float32 dist = glm::length(d);
+        glm::vec3 color2(2*dist*0.9 + 0.1f, 0.3f, 2 * dist );
         glm::vec3 vel_dir = glm::normalize(glm::cross(d, glm::vec3(0.0f,0.0f,1.0f)));
-        // num particles at center (volume of 4/3 pi dist^3) is dist^3/R^3 * N = dist^3/(1/2)^3*N = 2^3*dist^3*N
-        glm::vec3 orbital_vel = vel_dir * glm::sqrt(NUM_ELEMENTS * 8.0f * dist*dist*dist* GRAV_CONST / (dist + 0.000001f));
+        // num particles at center (volume of 4/3 pi dist^3) is K = dist^3/R^3 * N = dist^3/(1/2)^3*N = 2^3*dist^3*N
+        // total mass of smaller sphere M = m*2^3*dist^3*N, if m  = 1/N -> M = 2^3*dist^3; v = sqrt(MG/d)
+        glm::vec3 orbital_vel = 3.0f*vel_dir * glm::sqrt(8.0f * dist*dist*dist* GRAV_CONST / (dist + 0.000001f));
+        
+        //float angle = glm::acos(d[0] / dist);
+        //glm::vec3 vel_dir(-glm::sin(angle), glm::cos(angle), 0.0f);
+        //glm::vec3 orbital_vel = angular_vel * dist * vel_dir;
 
-        //glm::vec3 orbital_vel = glm::normalize(d);// (0.0f, 0.0f, 0.0f);
-        //glm::vec3 orbital_vel(0.007f, 0.008f, 0.0009f);
-        //glm::vec3 accel(0.0045f, 0.0046f, 0.0047f);
         glm::vec3 accel(0.0f);
-        point3D v{glm::vec4(color,1.0f), p, 0.005f*orbital_vel, accel , 1.0f, 1.0f, 0.0f};
+        point3D v{glm::vec4(color2,1.0f), p, orbital_vel, accel , mass, 1.0f, 0.0f};
         particles.push_back(v);
     }
 
@@ -407,6 +431,138 @@ void Buffers::createBuffer_lbvh_points(std::vector<glm::vec3> points, glm::vec3 
         static_cast<const void*>(particles.data())
     );
 }
+
+
+void Buffers::createBuffer_lbvh_points_2sphere()
+{
+    glm::vec3 center(0.5f, 0.5f, 0.5f);
+    float total_mass = 0.01f;
+    float blob_r = 0.08f;
+    float distance = 0.45f;// 1.0f - 2.0f * blob_r - 10.0f * P_R;
+    std::array<glm::vec3, 2> centers = {
+        center + glm::vec3(distance / 2, 0.0f, 0.0f),
+        center - glm::vec3(distance / 2, -0.0f, -0.0f)
+    };
+    std::array<glm::vec4, 2> colors = {
+        glm::vec4(1.0f, 0.0f, 0.0f,1.0f),
+        glm::vec4(0.0f, 0.0f, 1.0f,1.0f)
+    };
+    float vel_mag = 235.0f * glm::sqrt((total_mass / 2) / distance);
+
+
+    //std::vector<point3D> particles;
+    points_lbvh.reserve(NUM_ELEMENTS);
+    std::default_random_engine rndEngine((unsigned)time(nullptr));
+    std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
+
+    for (size_t i = 0; i < NUM_ELEMENTS; i++)
+    {
+        bool thisGroup = i < NUM_ELEMENTS / 2;
+        uint32_t thisID = (thisGroup) ? 0 : 1;
+        uint32_t thatID = (thisGroup) ? 1 : 0;
+        int dir = (thisGroup) ? 1 : -1;
+
+
+        float a = rndDist(rndEngine);
+        float b = rndDist(rndEngine);
+        float c = rndDist(rndEngine);
+        glm::vec3 dr = Misc::rollSphereCoords(0.0f, blob_r, glm::vec3(a, b, c));
+
+        //p += glm::vec3(0.5f, 0.5f, 0.5f);
+        point3D p;
+        p.color = colors[thisGroup];
+        p.position = centers[thisGroup] + dr;
+        p.velocity = dir * glm::vec3(1.0f, 0.0f, 0.0f) * vel_mag + dr;
+        p.mass = total_mass / NUM_ELEMENTS;
+        p.group_id = static_cast<float>(thisGroup);
+        if (i % (NUM_ELEMENTS / 2) == 0) {
+            p.mass = 450 * total_mass / NUM_ELEMENTS;
+            p.color = glm::vec4(0.0f, 1.0f, 1.0f, 1.0f);
+            p.velocity = -0.1 * dir * vel_mag * glm::vec3(1.0f, 0.0f, 0.0f);
+            p.position = center + dir * glm::vec3(0.0f, 0.7f, 0.0f);
+            p.group_id = 3.0f;
+        }
+        p.acceleration = glm::vec3(0.0f, 0.0f, 0.0f);
+        p.damping = 0.0f;
+        
+
+        //std::cout << p[0] << " " << p[1] << " " << p[2] << std::endl;
+        points_lbvh.push_back(p);
+    }
+
+    createBufferDeviceLocalData(
+        sizeof(point3D) * NUM_ELEMENTS,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        buffer_lbvh_particles,
+        bufferMemory_lbvh_particles,
+        static_cast<const void*>(points_lbvh.data())
+    );
+
+    std::memcpy(bufferMapped_lbvh_particles_host_vis, points_lbvh.data(), sizeof(point3D) * NUM_ELEMENTS);
+}
+
+void Buffers::createBuffer_lbvh_points_rot_sphere()
+{
+    glm::vec3 center(0.5f, 0.5f, 0.5f);
+    float total_mass = 1.f;
+    float mass = total_mass / NUM_ELEMENTS;
+    float blob_r = 0.5f;
+
+    points_lbvh.reserve(NUM_ELEMENTS);
+    std::default_random_engine rndEngine((unsigned)time(nullptr));
+    std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
+
+    glm::vec4 color1(1.f, 0.f, 0.f, 1.f);
+    glm::vec4 color2(0.f, 1.f, 0.f, 1.f);
+
+    float omega = 1.f;
+    for (size_t i = 0; i < NUM_ELEMENTS; i++)
+    {
+        point3D p;
+        float a = rndDist(rndEngine);
+        float b = rndDist(rndEngine);
+        float c = rndDist(rndEngine);
+        glm::vec3 dr = Misc::rollSphereCoords(0.0f, blob_r, glm::vec3(a, b, c));
+        float t = glm::length(dr)/ blob_r;
+        p.color = (1-t) * color1 + t * color2;
+        float d = glm::length(glm::vec2(dr));
+        // mass inside sphere of dr -> NUM_ELEMENTS * mass * (dr/blob_r)^3
+        float M = mass * NUM_ELEMENTS * glm::pow(d / blob_r, 3);
+        float phi = glm::acos(dr.x / d);
+        p.position = center + dr;
+        // v = sqrt(GM/d)
+        p.velocity = 20.f * glm::sqrt(M/d) * glm::vec3(-glm::sin(phi), glm::cos(phi), 0.0f);
+        p.mass = mass;
+        p.group_id = 0.f;
+
+        p.acceleration = glm::vec3(0.0f, 0.0f, 0.0f);
+        p.damping = 0.0f;
+
+        points_lbvh.push_back(p);
+        }
+
+    createBufferDeviceLocalData(
+        sizeof(point3D) * NUM_ELEMENTS,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        buffer_lbvh_particles,
+        bufferMemory_lbvh_particles,
+        static_cast<const void*>(points_lbvh.data())
+    );
+
+    std::memcpy(bufferMapped_lbvh_particles_host_vis, points_lbvh.data(), sizeof(point3D) * NUM_ELEMENTS);
+
+    /*createBufferDeviceLocalData(
+        sizeof(point3D) * NUM_ELEMENTS,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        buffer_lbvh_particles,
+        bufferMemory_lbvh_particles,
+        bufferMapped_lbvh_particles_host_vis,
+        buffer_lbvh_particles_host_vis,
+        static_cast<const void*>(points_lbvh.data())
+    );*/
+
+}
+
 
 void Buffers::createBuffer_lbvh_points_host_vis()
 {
@@ -427,7 +583,7 @@ void Buffers::createBuffer_lbvh_elementsBuffer(std::vector<glm::vec3> points)
 {
     std::vector<Element> particles;
     particles.reserve(NUM_ELEMENTS);
-    
+    float mass = 1 / static_cast<float>(NUM_ELEMENTS);
     for (uint32_t i = 0; i < NUM_ELEMENTS; i++)
     {
         glm::vec3 p = points[i];
@@ -439,7 +595,7 @@ void Buffers::createBuffer_lbvh_elementsBuffer(std::vector<glm::vec3> points)
         e.aabbMaxX = p[0] + P_R;
         e.aabbMaxY = p[1] + P_R;
         e.aabbMaxZ = p[2] + P_R;
-        e.mass = 1.0f;
+        e.mass = mass;
         particles.push_back(e);
     }
 
@@ -454,15 +610,74 @@ void Buffers::createBuffer_lbvh_elementsBuffer(std::vector<glm::vec3> points)
     //particle_ids.shrink_to_fit();
 }
 
+void Buffers::createBuffer_lbvh_elementsBuffer()
+{
+    std::vector<Element> elements;
+    elements.reserve(NUM_ELEMENTS);
+    for (uint32_t i = 0; i < NUM_ELEMENTS; i++)
+    {
+        point3D p = points_lbvh[i];
+        Element e;
+        e.primitiveIdx = i;
+        e.aabbMinX = p.position[0] - P_R; // tested in RenderDoc with 0.1f, 0.2f,...
+        e.aabbMinY = p.position[1] - P_R;
+        e.aabbMinZ = p.position[2] - P_R;
+        e.aabbMaxX = p.position[0] + P_R;
+        e.aabbMaxY = p.position[1] + P_R;
+        e.aabbMaxZ = p.position[2] + P_R;
+        e.mass = p.mass;
+        elements.push_back(e);
+    }
+
+    createBufferDeviceLocalData(
+        sizeof(Element) * NUM_ELEMENTS,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        buffer_lbvh_elements,
+        bufferMemory_lbvh_elements,
+        static_cast<const void*>(elements.data())
+    );
+    //particle_ids.clear();
+    //particle_ids.shrink_to_fit();
+}
+
+
 void Buffers::createBuffer_lbvh_mortonCode()
 {
+
+    std::vector<MortonCodeElement> importedData = Misc::importFromCSV("mc_unsorted2.csv");
+
     createBufferDeviceLocalData(
         sizeof(MortonCodeElement) * NUM_ELEMENTS,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         buffer_lbvh_mortonCode,
-        bufferMemory_lbvh_mortonCode
+        bufferMemory_lbvh_mortonCode,
+        static_cast<const void*>(importedData.data())
     );
 
+}
+
+void Buffers::createBuffer_lbvh_mortonCode_host_vis()
+{
+    VkDeviceSize size = sizeof(MortonCodeElement) * NUM_ELEMENTS;
+    createBuffer(
+        size,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        buffer_lbvh_mortonCode_host_vis,
+        bufferMemory_lbvh_mortonCode_host_vis);
+
+    vkMapMemory(*pDevice, bufferMemory_lbvh_mortonCode_host_vis, 0,
+        size, 0, &bufferMapped_lbvh_mortonCode_host_vis);
+
+    createBuffer(
+        size,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        buffer_lbvh_mortonCode_host_vis2,
+        bufferMemory_lbvh_mortonCode_host_vis2);
+
+    vkMapMemory(*pDevice, bufferMemory_lbvh_mortonCode_host_vis2, 0,
+        size, 0, &bufferMapped_lbvh_mortonCode_host_vis2);
 }
 
 void Buffers::createBuffer_lbvh_mortonCodePingPong()
@@ -485,16 +700,6 @@ void Buffers::createBuffer_lbvh_LBVH()
     );
 }
 
-void Buffers::createBuffer_lbvh_LBVHConstructionInfo()
-{
-    createBufferDeviceLocalData(
-        sizeof(LBVHConstructionInfo) * NUM_LBVH_ELEMENTS,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        buffer_lbvh_LBVHConstructionInfo,
-        bufferMemory_lbvh_LBVHConstructionInfo
-    );
-}
-
 void Buffers::createBuffer_lbvh_LBVH_hist_vis()
 {
     VkDeviceSize size = sizeof(LBVHNode) * NUM_LBVH_ELEMENTS;
@@ -507,6 +712,16 @@ void Buffers::createBuffer_lbvh_LBVH_hist_vis()
 
     vkMapMemory(*pDevice, bufferMemory_lbvh_LBVH_host_vis, 0, 
         size, 0, &bufferMapped_lbvh_LBVH_hist_vis);
+}
+
+void Buffers::createBuffer_lbvh_LBVHConstructionInfo()
+{
+    createBufferDeviceLocalData(
+        sizeof(LBVHConstructionInfo) * NUM_LBVH_ELEMENTS,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        buffer_lbvh_LBVHConstructionInfo,
+        bufferMemory_lbvh_LBVHConstructionInfo
+    );
 }
 
 void Buffers::createBuffer_uniformDeltaTime()

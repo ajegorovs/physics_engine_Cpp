@@ -81,6 +81,7 @@ void Sync::createSyncObjects() {
         }
     }
     if (vkCreateSemaphore(*pDevice, &semaphoreInfo, nullptr, &lbvhComputeSemaphore) != VK_SUCCESS ||
+        vkCreateSemaphore(*pDevice, &semaphoreInfo, nullptr, &lbvhComputeSemaphore2) != VK_SUCCESS ||
         vkCreateFence(*pDevice, &fenceInfo, nullptr, &lbvhComputeFence) != VK_SUCCESS) {
         throw std::runtime_error("failed to create lbvhComputeSemaphore compute synchronization object!");
     }
@@ -95,5 +96,6 @@ void Sync::cleanup() {
         vkDestroyFence(     *pDevice, computeInFlightFences[i], nullptr);
     }
     vkDestroySemaphore(*pDevice, lbvhComputeSemaphore, nullptr);
+    vkDestroySemaphore(*pDevice, lbvhComputeSemaphore2, nullptr);
     vkDestroyFence(*pDevice, lbvhComputeFence, nullptr);
 }

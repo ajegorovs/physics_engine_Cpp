@@ -1,6 +1,6 @@
 
 #version 460
-const float PI = 3.1415926535897932384626433832795;
+
 struct Particle {
 	vec4 color;
 	vec3 position;
@@ -16,7 +16,6 @@ layout (local_size_x = 256) in;
 layout (push_constant, std430) uniform PushConstants {
     float deltaTime;
 	uint g_num_elements;
-	float updateBBs;
 };
 
 layout (std430, set = 4, binding = 0) buffer particles {
@@ -30,10 +29,41 @@ void main() {
     if (idx >= g_num_elements || deltaTime <= 0) {
         return;
     }
+	// Tried to force motion as a rigid sphere.
+	//float angular_vel = 0.25f;
+	//vec3 d = vec3(0.5f,0.5f,0.5f) - g_particles[idx].position;
+	//d[2] = 0.0f; 
+	//float dist = length(d);
+	//float angle = acos(d[0] / dist);
+	//vec3 vel_dir = vec3(-1*sin(angle), cos(angle), 0.0f);
+	//vec3 orbital_vel = angular_vel * dist * vel_dir;
+	//g_particles[idx].position += orbital_vel * deltaTime;
 	
-	// Euler method
+	
+	// FORCED POSITION CHANGE. FOR LBVH DEBUG
+	//vec3 r = g_particles[idx].position;
+	//r -= vec3(0.5f,0.5f,0.5f);
+	//float a = 10.0f* deltaTime;
+	//float rx = cos(a)*r[0] - sin(a)*r[1];
+	//float ry = sin(a)*r[0] + cos(a)*r[1];
+	//float rz = r[2];
+	//g_particles[idx].position = vec3(rx,ry,rz) + vec3(0.5f,0.5f,0.5f);
+	
+	// OG Euler
+	
 	g_particles[idx].position += g_particles[idx].velocity * deltaTime;
-	g_particles[idx].velocity +=  g_particles[idx].acceleration * deltaTime;
+	g_particles[idx].velocity += g_particles[idx].acceleration * deltaTime;
 	
+	
+	if ((g_particles[idx].position.x <= -0.5) || (g_particles[idx].position.x  >= 1.5)) {
+			g_particles[idx].velocity.x *= -0.7;
+		}
+		if ((g_particles[idx].position.y <= -0.5) || (g_particles[idx].position.y >= 1.5)) {
+			g_particles[idx].velocity.y *= -0.7;
+		}
+		if ((g_particles[idx].position.z <= -0.5) || (g_particles[idx].position.z >= 1.5)) {
+			g_particles[idx].velocity.z *= -0.7;
+		}
+		
 
 }

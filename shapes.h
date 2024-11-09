@@ -6,7 +6,6 @@
 #define GLM_FORCE_SWIZZLE 
 #include <glm/glm.hpp>
 #include <vector>
-
 #include <string>
 
 class geometric_shape {

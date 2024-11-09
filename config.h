@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <array>
+#include <string>
 
 // Window dimensions
 const uint32_t WIDTH = 800;

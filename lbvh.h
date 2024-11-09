@@ -9,10 +9,12 @@
 #include <glm/glm.hpp>
 
 const bool DRAW_BBS = false;
+const bool DRAW_BBS_only_outer = true;
 const float P_R = 0.005f;
 //const std::vector<glm::vec3> poits2d =  Misc::seedUniformPoints2D(50);
 //const uint32_t NUM_ELEMENTS = static_cast<uint32_t>(size(poits2d));
-const uint32_t NUM_ELEMENTS = 200;// glm::pow(10, 3);
+
+const uint32_t NUM_ELEMENTS = 400;// glm::pow(10, 3);
 const uint32_t NUM_LBVH_ELEMENTS = NUM_ELEMENTS + NUM_ELEMENTS - 1;
 const uint32_t NUM_BB_POINTS = ((NUM_ELEMENTS -1) + 1) * 12 * 2; // + external box
                             // num internal nodes * num box edges * num points
@@ -20,7 +22,6 @@ const VkDeviceSize lineVertSize = sizeof(VertexBase) * NUM_BB_POINTS;
 
 //const std::vector<float> asd = Misc::getExtent(poits2d);
 //const PushConstantsMortonCodes pushConstMC{ NUM_ELEMENTS, asd[0], asd[1], asd[2], asd[3], asd[4], asd[5]};
-const PushConstantsMortonCodes pushConstMC{ NUM_ELEMENTS, -P_R , -P_R, -P_R , 1.0f + P_R , 1.0f + P_R , 1.0f + P_R };
 const PushConstantsRadixSort pushConstRS{ NUM_ELEMENTS };
 const PushConstantsHierarchy pushConstHierarchy{ NUM_ELEMENTS, 1 };
 const PushConstantsBoundingBoxes pushConstantsBoundingBoxes{ NUM_ELEMENTS, 1 };

@@ -29,6 +29,8 @@ public:
 	VkBuffer buffer_lbvh_particles_host_vis;
 	VkBuffer buffer_lbvh_elements;
 	VkBuffer buffer_lbvh_mortonCode;
+	VkBuffer buffer_lbvh_mortonCode_host_vis;
+	VkBuffer buffer_lbvh_mortonCode_host_vis2;
 	VkBuffer buffer_lbvh_mortonCodePingPong;
 	VkBuffer buffer_lbvh_LBVH;
 	VkBuffer buffer_lbvh_LBVHConstructionInfo;
@@ -36,6 +38,8 @@ public:
 
 	VkDeviceMemory bufferMemory_lbvh_LBVH_host_vis;
 	VkDeviceMemory bufferMemory_lbvh_particles_host_vis;
+	VkDeviceMemory bufferMemory_lbvh_mortonCode_host_vis;
+	VkDeviceMemory bufferMemory_lbvh_mortonCode_host_vis2;
 
 
 	Buffers();
@@ -54,6 +58,16 @@ public:
 		VkBufferUsageFlags usage,
 		std::vector<VkBuffer>& buffer,
 		std::vector<VkDeviceMemory>& bufferMemory
+	);
+
+	void createBufferDeviceLocalData(
+		VkDeviceSize size,
+		VkBufferUsageFlags usage,
+		VkBuffer& buffer,
+		VkDeviceMemory& bufferMemory,
+		const void* pStagingMem,
+		VkBuffer& stagingBuffer,
+		const void* pData
 	);
 
 	void createBufferDeviceLocalData(
@@ -83,13 +97,17 @@ public:
 
 	void createBuffer_lbvh_points(std::vector<glm::vec3> points, glm::vec3 color);
 	void createBuffer_lbvh_points_host_vis();
+	void createBuffer_lbvh_points_2sphere();
+	void createBuffer_lbvh_points_rot_sphere();
 	void createBuffer_lbvh_elementsBuffer(std::vector<glm::vec3> points);
+	void createBuffer_lbvh_elementsBuffer();
 	void createBuffer_lbvh_mortonCode();
+	void createBuffer_lbvh_mortonCode_host_vis();
 	void createBuffer_lbvh_mortonCodePingPong();
 	void createBuffer_lbvh_LBVH();
+	void createBuffer_lbvh_LBVH_hist_vis();
 	void createBuffer_lbvh_LBVHConstructionInfo();
 
-	void createBuffer_lbvh_LBVH_hist_vis();
 
 	void createBuffer_uniformDeltaTime();
 	void createBuffer_physics_particles_compute();
@@ -108,6 +126,8 @@ public:
 	void* bufferMapped_lines;
 	void* bufferMapped_lbvh_LBVH_hist_vis;
 	void* bufferMapped_lbvh_particles_host_vis;
+	void* bufferMapped_lbvh_mortonCode_host_vis;
+	void* bufferMapped_lbvh_mortonCode_host_vis2;
 
 	VkBuffer vertexBuffer;
 	VkBuffer indexBuffer;
@@ -135,5 +155,5 @@ private:
 	VkDeviceMemory indexBufferMemory;
 	VkDeviceMemory bufferMemory_lines;
 
-
+	std::vector<point3D> points_lbvh;
 };

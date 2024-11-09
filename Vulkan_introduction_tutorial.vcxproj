@@ -104,7 +104,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Program Files\Microsoft Visual Studio\2022\Community\Libraries\tinyobjloader-release;C:\Program Files\Microsoft Visual Studio\2022\Community\Libraries\stb-master;C:\VulkanSDK\1.3.296.0\Include;C:\Program Files\Microsoft Visual Studio\2022\Community\Libraries\glm;C:\Program Files\Microsoft Visual Studio\2022\Community\Libraries\glfw-3.4.bin.WIN64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files\Microsoft Visual Studio\2022\Community\Libraries\SPIRV-Reflect;C:\Program Files\Microsoft Visual Studio\2022\Community\Libraries\tinyobjloader-release;C:\Program Files\Microsoft Visual Studio\2022\Community\Libraries\stb-master;C:\VulkanSDK\1.3.296.0\Include;C:\Program Files\Microsoft Visual Studio\2022\Community\Libraries\glm;C:\Program Files\Microsoft Visual Studio\2022\Community\Libraries\glfw-3.4.bin.WIN64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
@@ -123,7 +123,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Program Files\Microsoft Visual Studio\2022\Community\Libraries\tinyobjloader-release;C:\Program Files\Microsoft Visual Studio\2022\Community\Libraries\stb-master;C:\VulkanSDK\1.3.296.0\Include;C:\Program Files\Microsoft Visual Studio\2022\Community\Libraries\glm;C:\Program Files\Microsoft Visual Studio\2022\Community\Libraries\glfw-3.4.bin.WIN64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files\Microsoft Visual Studio\2022\Community\Libraries\SPIRV-Reflect;C:\Program Files\Microsoft Visual Studio\2022\Community\Libraries\tinyobjloader-release;C:\Program Files\Microsoft Visual Studio\2022\Community\Libraries\stb-master;C:\VulkanSDK\1.3.296.0\Include;C:\Program Files\Microsoft Visual Studio\2022\Community\Libraries\glm;C:\Program Files\Microsoft Visual Studio\2022\Community\Libraries\glfw-3.4.bin.WIN64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
@@ -137,6 +137,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\..\..\..\Program Files\Microsoft Visual Studio\2022\Community\Libraries\SPIRV-Reflect\spirv_reflect.c" />
     <ClCompile Include="buffers.cpp" />
     <ClCompile Include="commands.cpp" />
     <ClCompile Include="compute.cpp" />
@@ -151,12 +152,14 @@
     <ClCompile Include="misc.cpp" />
     <ClCompile Include="graphics.cpp" />
     <ClCompile Include="physics.cpp" />
+    <ClCompile Include="shader.cpp" />
     <ClCompile Include="shapes.cpp" />
     <ClCompile Include="swapchain.cpp" />
     <ClCompile Include="sync.cpp" />
     <ClCompile Include="Timer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\..\..\..\Program Files\Microsoft Visual Studio\2022\Community\Libraries\SPIRV-Reflect\spirv_reflect.h" />
     <ClInclude Include="buffers.h" />
     <ClInclude Include="commands.h" />
     <ClInclude Include="compute.h" />
@@ -172,6 +175,7 @@
     <ClInclude Include="misc.h" />
     <ClInclude Include="graphics.h" />
     <ClInclude Include="physics.h" />
+    <ClInclude Include="shader.h" />
     <ClInclude Include="shapes.h" />
     <ClInclude Include="structs.h" />
     <ClInclude Include="swapchain.h" />
