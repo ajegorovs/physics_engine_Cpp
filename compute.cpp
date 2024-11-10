@@ -135,6 +135,13 @@ void Compute::createComputePipeline_lbvh(
         "shaders/lbvh_update_particles.spv");
 
     createComputePipeline(
+        &computeP_lbvh_particles_update2,
+        &computePL_lbvh_particles_update2,
+        descriptorSetLayouts,
+        sizeof(StructDeltaTimeLBVH),
+        "shaders/lbvh_update_particles_2.spv");
+
+    createComputePipeline(
         &computeP_lbvh_bounding_box_update,
         &computePL_lbvh_bounding_box_update,
         descriptorSetLayouts,

@@ -100,8 +100,10 @@ void Engine::run()
        
         //bfr.createBuffer_lbvh_points(points3d);//, glm::vec3(0.0f, 0.0f, 1.0f)
         bfr.createBuffer_lbvh_points_host_vis();
-        //bfr.createBuffer_lbvh_points_2sphere();//, glm::vec3(0.0f, 0.0f, 1.0f)
-        bfr.createBuffer_lbvh_points_rot_sphere();
+        bfr.createBuffer_lbvh_points_2sphere();//, glm::vec3(0.0f, 0.0f, 1.0f)
+        bfr.createBuffer_lbvh_get_init_BBs();
+        bfr.createBuffer_lbvh_global_BBs();
+        //bfr.createBuffer_lbvh_points_rot_sphere();
         //bfr.createBuffer_lbvh_elementsBuffer(points3d);
         bfr.createBuffer_lbvh_elementsBuffer();
         bfr.createBuffer_lbvh_mortonCode();
@@ -117,7 +119,8 @@ void Engine::run()
             bfr.buffer_lbvh_mortonCodePingPong,
             bfr.buffer_lbvh_LBVH,
             bfr.buffer_lbvh_LBVHConstructionInfo,
-            bfr.buffer_lbvh_particles
+            bfr.buffer_lbvh_particles,
+            bfr.buffer_lbvh_global_BBs
         );
         //dscr.createDS_lbvh_transform(bfr.buffer_lbvh_particles, bfr.buffer_lbvh_elements);
         cmd.createLBVHComputeCommandBuffer();
@@ -283,7 +286,7 @@ void Engine::updateBufferMapped_uniformMVP(uint32_t currentImage) {
         ),
         -glm::vec3(0.5f,0.5f,0.5f)
     );//1.8f, 1.8f, 1.8f
-    ubo.view = glm::lookAt( (1.0f + 0.0f * time)* glm::vec3(0.0f, 1.51f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt( (1.0f + 0.0f * time)* glm::vec3(0.0f, 1.81f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), swp.swapChainExtent.width / (float)swp.swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
 
@@ -528,30 +531,20 @@ void Engine::recordLBVHComputeCommandBuffer(VkCommandBuffer commandBuffer, bool 
 
 void Engine::recordLBVHComputeCommandBuffer2(VkCommandBuffer commandBuffer, bool recalculate)
 {
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    VkCommandBufferBeginInfo beginInfo{ .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 
     if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
         throw std::runtime_error("failed to begin recording LBVH compute command buffer!");
     }
-
-    VkBufferCopy copyToDevice{ 0,0, sizeof(point3D) * NUM_ELEMENTS };
-    vkCmdCopyBuffer(commandBuffer, bfr.buffer_lbvh_particles_host_vis, bfr.buffer_lbvh_particles, 1, &copyToDevice);
-
-    VkMemoryBarrier write_compute{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_TRANSFER_WRITE_BIT , VK_ACCESS_SHADER_READ_BIT };
-
-    vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &write_compute, 0, nullptr, 0, nullptr);
-
-    // 3.2 we can use same command buffer to launch particle force integration on GPU.
 
     const StructDeltaTimeLBVH pushDeltaTime{ static_cast<float>(lastFrameTime)*0.005f, NUM_ELEMENTS};//lastTime//lastFrameTime
     uint32_t size = static_cast<uint32_t>(dscr.descriptorSets_lbvh.size());
     uint32_t x = (NUM_ELEMENTS + 256 - 1) / 256;
 
     // ------ update particle positions from compute shader. for demonstration.
-    vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_particles_update, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(StructDeltaTimeLBVH), &pushDeltaTime);
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_particles_update);
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_particles_update, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
+    vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_particles_update2, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(StructDeltaTimeLBVH), &pushDeltaTime);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_particles_update2);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_particles_update2, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
     vkCmdDispatch(commandBuffer, x, 1, 1);
 
     if (recalculate) {
@@ -562,23 +555,234 @@ void Engine::recordLBVHComputeCommandBuffer2(VkCommandBuffer commandBuffer, bool
         // ---------------- Update Bounding Boxes ---------------
         vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_bounding_box_update, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(StructDeltaTimeLBVH), &pushDeltaTime);
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_bounding_box_update);
-
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_bounding_box_update, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
         vkCmdDispatch(commandBuffer, x, 1, 1);
 
     }
 
-    // write updated version to host for analysis.
-    VkMemoryBarrier particles_2_host { VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT };
-    vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, 1, &particles_2_host, 0, nullptr, 0, nullptr);
-
-    // copy particle data to host
-    VkBufferCopy copyParticles{ 0,0, sizeof(point3D) * NUM_ELEMENTS };
-    vkCmdCopyBuffer(cmd.commandLBVHComputeBuffer, bfr.buffer_lbvh_particles, bfr.buffer_lbvh_particles_host_vis, 1, &copyParticles);
-
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to record LBVH compute command buffer!");
     }
+}
+
+void Engine::doLBVH_MC_RADIX()
+{
+    uint32_t size = static_cast<uint32_t>(dscr.descriptorSets_lbvh.size());
+    uint32_t x = (NUM_ELEMENTS + 256 - 1) / 256;
+    uint32_t y = (256 + 256 - 1) / 256;
+    // ================== Morton Codes ==================
+    bool load_fake_mc = false;
+    if (true) {
+        //kWaitForFences(device, 1, &sync.lbvhComputeFence, VK_TRUE, UINT64_MAX);
+        //kResetFences(device, 1, &sync.lbvhComputeFence);
+        //vkResetCommandBuffer(cmd.commandLBVHComputeBuffer, /*VkCommandBufferResetFlagBits*/ 0);
+
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+        if (vkBeginCommandBuffer(cmd.commandLBVHComputeBuffer, &beginInfo) != VK_SUCCESS) {
+            throw std::runtime_error("failed to begin recording LBVH compute command buffer!");
+        }
+
+        // -------------- Generate Morton Codes ---------------
+        if (!load_fake_mc) {
+            // read element write morton code
+            vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_morton_codes, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsMortonCodes), &pushConstMC);
+            vkCmdBindPipeline(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_morton_codes);
+            vkCmdBindDescriptorSets(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_morton_codes, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
+            vkCmdDispatch(cmd.commandLBVHComputeBuffer, x, 1, 1);
+            // copy unsorted MC to host. for backup. if sorting fails to repeat from this data.
+            VkMemoryBarrier write_mc_old{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT };
+            vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, 1, &write_mc_old, 0, nullptr, 0, nullptr);
+            // v2 is for old backup.
+            VkBufferCopy copyRegion1{ 0,0,sizeof(MortonCodeElement) * NUM_ELEMENTS };
+            vkCmdCopyBuffer(cmd.commandLBVHComputeBuffer, bfr.buffer_lbvh_mortonCode, bfr.buffer_lbvh_mortonCode_host_vis2, 1, &copyRegion1);
+
+            VkMemoryBarrier memoryBarrier1{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
+            vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier1, 0, nullptr, 0, nullptr);
+        }
+        else {
+            // download fake unsorted MC data to device
+            std::vector<MortonCodeElement> importedData = Misc::importFromCSV("mc_unsorted2.csv");
+            std::memcpy(bfr.bufferMapped_lbvh_mortonCode_host_vis2, importedData.data(), sizeof(MortonCodeElement) * NUM_ELEMENTS);
+            VkBufferCopy copyRegion1{ 0,0,sizeof(MortonCodeElement) * NUM_ELEMENTS };
+            vkCmdCopyBuffer(cmd.commandLBVHComputeBuffer, bfr.buffer_lbvh_mortonCode_host_vis2, bfr.buffer_lbvh_mortonCode, 1, &copyRegion1);
+
+            VkMemoryBarrier memoryBarrier1{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
+            vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier1, 0, nullptr, 0, nullptr);
+
+        }
+        // do radix sort on MC
+        vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_single_radixsort, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsRadixSort), &pushConstRS);
+        vkCmdBindPipeline(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_single_radixsort);
+        vkCmdBindDescriptorSets(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_single_radixsort, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
+        vkCmdDispatch(cmd.commandLBVHComputeBuffer, y, 1, 1);
+
+        // write updated version to host for analysis.
+        VkMemoryBarrier write_mc_upd{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT };
+        vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, 1, &write_mc_upd, 0, nullptr, 0, nullptr);
+
+        VkBufferCopy copyRegion1{ 0,0,sizeof(MortonCodeElement) * NUM_ELEMENTS };
+        vkCmdCopyBuffer(cmd.commandLBVHComputeBuffer, bfr.buffer_lbvh_mortonCode, bfr.buffer_lbvh_mortonCode_host_vis, 1, &copyRegion1);
+
+        if (vkEndCommandBuffer(cmd.commandLBVHComputeBuffer) != VK_SUCCESS) {
+            throw std::runtime_error("failed to record LBVH compute command buffer!");
+        }
+
+        VkSubmitInfo submitInfo{ .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO, .commandBufferCount = 1, .pCommandBuffers = &cmd.commandLBVHComputeBuffer };
+
+        VkResult resultLBVHCompute = vkQueueSubmit(computeQueue, 1, &submitInfo, sync.lbvhComputeFence);//sync.lbvhComputeFence
+        if (resultLBVHCompute != VK_SUCCESS) {
+            std::cout << "Error: " << resultLBVHCompute << std::endl;
+            throw std::runtime_error("failed to submit LBVH compute command buffer!");
+        };
+
+        vkWaitForFences(device, 1, &sync.lbvhComputeFence, VK_TRUE, UINT64_MAX);
+        vkResetFences(device, 1, &sync.lbvhComputeFence);
+        vkResetCommandBuffer(cmd.commandLBVHComputeBuffer, /*VkCommandBufferResetFlagBits*/ 0);
+
+    }
+
+}
+
+bool Engine::redoLBVH_RADIX()
+{
+    uint32_t size = static_cast<uint32_t>(dscr.descriptorSets_lbvh.size());
+    uint32_t x = (NUM_ELEMENTS + 256 - 1) / 256;
+    uint32_t y = (256 + 256 - 1) / 256;
+
+    //std::vector<MortonCodeElement> MC(NUM_ELEMENTS);
+    std::vector<MortonCodeElement>& MC = bfr.MC;
+    // Radix repeated
+    size_t radix_try_iters = 5;
+    bool order_fail = false;
+    for (size_t i = 0; i < radix_try_iters + 1; i++) { // last (+1) not finished.
+        order_fail = false;
+        std::unordered_set<uint32_t> seenIndices;
+        std::memcpy(MC.data(), bfr.bufferMapped_lbvh_mortonCode_host_vis, sizeof(MortonCodeElement) * NUM_ELEMENTS);
+
+        for (const auto& element : MC) {
+            // Check if elementIdx is already in the set
+            if (seenIndices.find(element.elementIdx) != seenIndices.end()) {
+                order_fail = true;
+                break;
+            }
+            seenIndices.insert(element.elementIdx);
+        }
+
+        if (!order_fail) {
+            if (i > 0)
+                std::cout << " Order is busted! Fixed after. " << i << " iterations" << std::endl;;
+            gotAtleatOneLVBH = true;
+            break;
+        }
+        else if (i == radix_try_iters) {
+            std::cout << " Order is busted! Quit after " << radix_try_iters << "iterations" << std::endl;;
+            break;
+        }
+
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+        if (vkBeginCommandBuffer(cmd.commandLBVHComputeBuffer, &beginInfo) != VK_SUCCESS) {
+            throw std::runtime_error("failed to begin recording LBVH compute command buffer!");
+        }
+        // reset MC to unsorted from a backup on host.
+        VkBufferCopy copyRegion2{ 0,0,sizeof(MortonCodeElement) * NUM_ELEMENTS };
+        vkCmdCopyBuffer(cmd.commandLBVHComputeBuffer, bfr.buffer_lbvh_mortonCode_host_vis2, bfr.buffer_lbvh_mortonCode, 1, &copyRegion2);
+
+        VkMemoryBarrier memoryBarrier2{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
+        vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier2, 0, nullptr, 0, nullptr);
+
+        vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_single_radixsort, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsRadixSort), &pushConstRS);
+        vkCmdBindPipeline(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_single_radixsort);
+        vkCmdBindDescriptorSets(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_single_radixsort, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
+        vkCmdDispatch(cmd.commandLBVHComputeBuffer, y, 1, 1);
+
+        // write updated version to host for analysis.
+        VkMemoryBarrier write_mc_upd{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT };
+        vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, 1, &write_mc_upd, 0, nullptr, 0, nullptr);
+
+        VkBufferCopy copyRegion1{ 0,0,sizeof(MortonCodeElement) * NUM_ELEMENTS };
+        vkCmdCopyBuffer(cmd.commandLBVHComputeBuffer, bfr.buffer_lbvh_mortonCode, bfr.buffer_lbvh_mortonCode_host_vis, 1, &copyRegion1);
+
+
+        if (vkEndCommandBuffer(cmd.commandLBVHComputeBuffer) != VK_SUCCESS) {
+            throw std::runtime_error("failed to record LBVH compute command buffer!");
+        }
+
+        VkSubmitInfo submitInfo{ .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO, .commandBufferCount = 1, .pCommandBuffers = &cmd.commandLBVHComputeBuffer };
+
+        VkResult resultLBVHCompute = vkQueueSubmit(computeQueue, 1, &submitInfo, sync.lbvhComputeFence);//sync.lbvhComputeFence
+        if (resultLBVHCompute != VK_SUCCESS) {
+            std::cout << "Error: " << resultLBVHCompute << std::endl;
+            throw std::runtime_error("failed to submit LBVH compute command buffer!");
+        };
+
+        vkWaitForFences(device, 1, &sync.lbvhComputeFence, VK_TRUE, UINT64_MAX);
+        vkResetFences(device, 1, &sync.lbvhComputeFence);
+        vkResetCommandBuffer(cmd.commandLBVHComputeBuffer, /*VkCommandBufferResetFlagBits*/ 0);
+
+    }
+    return order_fail;
+}
+
+void Engine::doLBVH_Hierarchy()
+{
+    uint32_t size = static_cast<uint32_t>(dscr.descriptorSets_lbvh.size());
+    uint32_t x = (NUM_ELEMENTS + 256 - 1) / 256;
+    uint32_t y = (256 + 256 - 1) / 256;
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    if (vkBeginCommandBuffer(cmd.commandLBVHComputeBuffer, &beginInfo) != VK_SUCCESS) {
+        throw std::runtime_error("failed to begin recording LBVH compute command buffer!");
+    }
+
+    vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_hierarchy, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsHierarchy), &pushConstHierarchy);
+    vkCmdBindPipeline(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_hierarchy);
+
+    vkCmdBindDescriptorSets(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_hierarchy, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
+
+    vkCmdDispatch(cmd.commandLBVHComputeBuffer, x, 1, 1);
+
+    VkMemoryBarrier memoryBarrier3{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
+    vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier3, 0, nullptr, 0, nullptr);
+
+
+    vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_bounding_boxes, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsBoundingBoxes), &pushConstantsBoundingBoxes);
+
+    vkCmdBindPipeline(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_bounding_boxes);
+
+    vkCmdBindDescriptorSets(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_bounding_boxes, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
+
+    vkCmdDispatch(cmd.commandLBVHComputeBuffer, x, 1, 1);
+
+    // Finish writing LVBH data before tranferring it to host
+    VkMemoryBarrier memoryBarrier4{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT };
+    vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, 1, &memoryBarrier4, 0, nullptr, 0, nullptr);
+
+    VkBufferCopy copyLBVH{ 0,0,sizeof(LBVHNode) * NUM_LBVH_ELEMENTS };
+    vkCmdCopyBuffer(cmd.commandLBVHComputeBuffer, bfr.buffer_lbvh_LBVH, bfr.buffer_lbvh_LBVH_host_vis, 1, &copyLBVH);
+
+
+
+    if (vkEndCommandBuffer(cmd.commandLBVHComputeBuffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to record LBVH compute command buffer!");
+    }
+
+    VkSubmitInfo submitInfo{ .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO, .commandBufferCount = 1, .pCommandBuffers = &cmd.commandLBVHComputeBuffer };
+
+    VkResult resultLBVHCompute = vkQueueSubmit(computeQueue, 1, &submitInfo, sync.lbvhComputeFence);//sync.lbvhComputeFence
+    if (resultLBVHCompute != VK_SUCCESS) {
+        std::cout << "Error: " << resultLBVHCompute << std::endl;
+        throw std::runtime_error("failed to submit LBVH compute command buffer!");
+    };
+
+    vkWaitForFences(device, 1, &sync.lbvhComputeFence, VK_TRUE, UINT64_MAX);
+    vkResetFences(device, 1, &sync.lbvhComputeFence);
+    vkResetCommandBuffer(cmd.commandLBVHComputeBuffer, /*VkCommandBufferResetFlagBits*/ 0);
 }
 
 void Engine::recreateSwapChain() {
@@ -627,295 +831,29 @@ void Engine::drawFrame() {
         };
     }
         
-    recalculateLBVH = cnt % 1 == 0;
-    recalculateBBs = (cnt-1) % 1 == 0;
+    uint32_t LBVH_each_N_Frames = 3;
+    recalculateLBVH = cnt % LBVH_each_N_Frames == 0;
+    recalculateBBs =  (cnt - 1) % LBVH_each_N_Frames == 0;
+
     if (ENABLE_LVBH) {
+
+        if (cnt == 0) {
+            vkWaitForFences(device, 1, &sync.lbvhComputeFence, VK_TRUE, UINT64_MAX);
+            vkResetFences(device, 1, &sync.lbvhComputeFence);
+            vkResetCommandBuffer(cmd.commandLBVHComputeBuffer, /*VkCommandBufferResetFlagBits*/ 0);
+        }
 
         uint32_t size = static_cast<uint32_t>(dscr.descriptorSets_lbvh.size());
         uint32_t x = (NUM_ELEMENTS + 256 - 1) / 256;
         uint32_t y = (256 + 256 - 1) / 256;
-        // ================== Morton Codes ==================
-        bool load_fake_mc = false;
-        if (true) {
-            vkWaitForFences(device, 1, &sync.lbvhComputeFence, VK_TRUE, UINT64_MAX);
-            vkResetFences(device, 1, &sync.lbvhComputeFence);
-            vkResetCommandBuffer(cmd.commandLBVHComputeBuffer, /*VkCommandBufferResetFlagBits*/ 0);
 
-            VkCommandBufferBeginInfo beginInfo{};
-            beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-            if (vkBeginCommandBuffer(cmd.commandLBVHComputeBuffer, &beginInfo) != VK_SUCCESS) {
-                throw std::runtime_error("failed to begin recording LBVH compute command buffer!");
-            }
-
-            // -------------- Generate Morton Codes ---------------
-            if (!load_fake_mc) {
-                // read element write morton code
-                vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_morton_codes, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsMortonCodes), &pushConstMC);
-                vkCmdBindPipeline(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_morton_codes);
-                vkCmdBindDescriptorSets(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_morton_codes, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
-                vkCmdDispatch(cmd.commandLBVHComputeBuffer, x, 1, 1);
-                // copy unsorted MC to host. for backup. if sorting fails to repeat from this data.
-                VkMemoryBarrier write_mc_old{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT };
-                vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, 1, &write_mc_old, 0, nullptr, 0, nullptr);
-                // v2 is for old backup.
-                VkBufferCopy copyRegion1{ 0,0,sizeof(MortonCodeElement) * NUM_ELEMENTS };
-                vkCmdCopyBuffer(cmd.commandLBVHComputeBuffer, bfr.buffer_lbvh_mortonCode, bfr.buffer_lbvh_mortonCode_host_vis2, 1, &copyRegion1);
-
-                VkMemoryBarrier memoryBarrier1{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
-                vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier1, 0, nullptr, 0, nullptr);
-            }
-            else {
-                // download fake unsorted MC data to device
-                std::vector<MortonCodeElement> importedData = Misc::importFromCSV("mc_unsorted2.csv");
-                std::memcpy(bfr.bufferMapped_lbvh_mortonCode_host_vis2, importedData.data(), sizeof(MortonCodeElement) * NUM_ELEMENTS);
-                VkBufferCopy copyRegion1{ 0,0,sizeof(MortonCodeElement) * NUM_ELEMENTS };
-                vkCmdCopyBuffer(cmd.commandLBVHComputeBuffer, bfr.buffer_lbvh_mortonCode_host_vis2, bfr.buffer_lbvh_mortonCode, 1, &copyRegion1);
-
-                VkMemoryBarrier memoryBarrier1{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
-                vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier1, 0, nullptr, 0, nullptr);
-
-            }
-            // do radix sort on MC
-            vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_single_radixsort, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsRadixSort), &pushConstRS);
-            vkCmdBindPipeline(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_single_radixsort);
-            vkCmdBindDescriptorSets(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_single_radixsort, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
-            vkCmdDispatch(cmd.commandLBVHComputeBuffer, y, 1, 1);
-
-            // write updated version to host for analysis.
-            VkMemoryBarrier write_mc_upd{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT };
-            vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, 1, &write_mc_upd, 0, nullptr, 0, nullptr);
-
-            VkBufferCopy copyRegion1{ 0,0,sizeof(MortonCodeElement) * NUM_ELEMENTS };
-            vkCmdCopyBuffer(cmd.commandLBVHComputeBuffer, bfr.buffer_lbvh_mortonCode, bfr.buffer_lbvh_mortonCode_host_vis, 1, &copyRegion1);
-
-            if (vkEndCommandBuffer(cmd.commandLBVHComputeBuffer) != VK_SUCCESS) {
-                throw std::runtime_error("failed to record LBVH compute command buffer!");
-            }
-
-            submitInfo = {};
-            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &cmd.commandLBVHComputeBuffer;
-
-            VkResult resultLBVHCompute = vkQueueSubmit(computeQueue, 1, &submitInfo, sync.lbvhComputeFence);//sync.lbvhComputeFence
-            if (resultLBVHCompute != VK_SUCCESS) {
-                std::cout << "Error: " << resultLBVHCompute << std::endl;
-                throw std::runtime_error("failed to submit LBVH compute command buffer!");
-            };
-
-            vkWaitForFences(device, 1, &sync.lbvhComputeFence, VK_TRUE, UINT64_MAX);
-            vkResetFences(device, 1, &sync.lbvhComputeFence);
-            vkResetCommandBuffer(cmd.commandLBVHComputeBuffer, /*VkCommandBufferResetFlagBits*/ 0);
-
-        }
-
-        std::vector<MortonCodeElement> MC(NUM_ELEMENTS);
-        // Radix repeated
-        size_t radix_try_iters = 5;
-        bool order_fail = false;
-        for (size_t i = 0; i < radix_try_iters + 1; i++) { // last (+1) not finished.
-            order_fail = false;
-            std::unordered_set<uint32_t> seenIndices;
-            std::memcpy(MC.data(), bfr.bufferMapped_lbvh_mortonCode_host_vis, sizeof(MortonCodeElement) * NUM_ELEMENTS);
-
-            for (const auto& element : MC) {
-                // Check if elementIdx is already in the set
-                if (seenIndices.find(element.elementIdx) != seenIndices.end()) {
-                    order_fail = true;
-                    break;
-                }
-                seenIndices.insert(element.elementIdx);
-            }
+        if (recalculateLBVH) {
+            doLBVH_MC_RADIX();
+            bool order_fail = redoLBVH_RADIX();
 
             if (!order_fail) {
-                if (i > 0)
-                    std::cout << " Order is busted! Fixed after. " << i << " iterations" << std::endl;;
-                gotAtleatOneLVBH = true;
-                break;
+                doLBVH_Hierarchy();
             }
-            else if (i == radix_try_iters) {
-                std::cout << " Order is busted! Quit after " << radix_try_iters << "iterations" << std::endl;;
-                break;
-            }
-
-            VkCommandBufferBeginInfo beginInfo{};
-            beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-            if (vkBeginCommandBuffer(cmd.commandLBVHComputeBuffer, &beginInfo) != VK_SUCCESS) {
-                throw std::runtime_error("failed to begin recording LBVH compute command buffer!");
-            }
-            // reset MC to unsorted from a backup on host.
-            VkBufferCopy copyRegion2{ 0,0,sizeof(MortonCodeElement) * NUM_ELEMENTS };
-            vkCmdCopyBuffer(cmd.commandLBVHComputeBuffer, bfr.buffer_lbvh_mortonCode_host_vis2, bfr.buffer_lbvh_mortonCode, 1, &copyRegion2);
-
-            VkMemoryBarrier memoryBarrier2{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
-            vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier2, 0, nullptr, 0, nullptr);
-
-            vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_single_radixsort, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsRadixSort), &pushConstRS);
-            vkCmdBindPipeline(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_single_radixsort);
-            vkCmdBindDescriptorSets(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_single_radixsort, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
-            vkCmdDispatch(cmd.commandLBVHComputeBuffer, y, 1, 1);
-
-            // write updated version to host for analysis.
-            VkMemoryBarrier write_mc_upd{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT };
-            vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, 1, &write_mc_upd, 0, nullptr, 0, nullptr);
-
-            VkBufferCopy copyRegion1{ 0,0,sizeof(MortonCodeElement) * NUM_ELEMENTS };
-            vkCmdCopyBuffer(cmd.commandLBVHComputeBuffer, bfr.buffer_lbvh_mortonCode, bfr.buffer_lbvh_mortonCode_host_vis, 1, &copyRegion1);
-
-
-            if (vkEndCommandBuffer(cmd.commandLBVHComputeBuffer) != VK_SUCCESS) {
-                throw std::runtime_error("failed to record LBVH compute command buffer!");
-            }
-
-            submitInfo = {};
-            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &cmd.commandLBVHComputeBuffer;
-
-            VkResult resultLBVHCompute = vkQueueSubmit(computeQueue, 1, &submitInfo, sync.lbvhComputeFence);//sync.lbvhComputeFence
-            if (resultLBVHCompute != VK_SUCCESS) {
-                std::cout << "Error: " << resultLBVHCompute << std::endl;
-                throw std::runtime_error("failed to submit LBVH compute command buffer!");
-            };
-
-            vkWaitForFences(device, 1, &sync.lbvhComputeFence, VK_TRUE, UINT64_MAX);
-            vkResetFences(device, 1, &sync.lbvhComputeFence);
-            vkResetCommandBuffer(cmd.commandLBVHComputeBuffer, /*VkCommandBufferResetFlagBits*/ 0);
-
-        }
-
-
-        // Hierarchy
-        if (!order_fail) {
-            VkCommandBufferBeginInfo beginInfo{};
-            beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-            if (vkBeginCommandBuffer(cmd.commandLBVHComputeBuffer, &beginInfo) != VK_SUCCESS) {
-                throw std::runtime_error("failed to begin recording LBVH compute command buffer!");
-            }
-
-            vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_hierarchy, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsHierarchy), &pushConstHierarchy);
-            vkCmdBindPipeline(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_hierarchy);
-
-            vkCmdBindDescriptorSets(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_hierarchy, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
-
-            vkCmdDispatch(cmd.commandLBVHComputeBuffer, x, 1, 1);
-
-            VkMemoryBarrier memoryBarrier3{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
-            vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier3, 0, nullptr, 0, nullptr);
-
-
-            vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_bounding_boxes, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsBoundingBoxes), &pushConstantsBoundingBoxes);
-
-            vkCmdBindPipeline(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_bounding_boxes);
-
-            vkCmdBindDescriptorSets(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_bounding_boxes, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
-
-            vkCmdDispatch(cmd.commandLBVHComputeBuffer, x, 1, 1);
-
-            // Finish writing LVBH data before tranferring it to host
-            VkMemoryBarrier memoryBarrier4{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT };
-            vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, 1, &memoryBarrier4, 0, nullptr, 0, nullptr);
-
-            VkBufferCopy copyLBVH{ 0,0,sizeof(LBVHNode) * NUM_LBVH_ELEMENTS };
-            vkCmdCopyBuffer(cmd.commandLBVHComputeBuffer, bfr.buffer_lbvh_LBVH, bfr.buffer_lbvh_LBVH_host_vis, 1, &copyLBVH);
-
-           
-
-            if (vkEndCommandBuffer(cmd.commandLBVHComputeBuffer) != VK_SUCCESS) {
-                throw std::runtime_error("failed to record LBVH compute command buffer!");
-            }
-
-            submitInfo = {};
-            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &cmd.commandLBVHComputeBuffer;
-
-            VkResult resultLBVHCompute = vkQueueSubmit(computeQueue, 1, &submitInfo, sync.lbvhComputeFence);//sync.lbvhComputeFence
-            if (resultLBVHCompute != VK_SUCCESS) {
-                std::cout << "Error: " << resultLBVHCompute << std::endl;
-                throw std::runtime_error("failed to submit LBVH compute command buffer!");
-            };
-
-            vkWaitForFences(device, 1, &sync.lbvhComputeFence, VK_TRUE, UINT64_MAX);
-            vkResetFences(device, 1, &sync.lbvhComputeFence);
-            vkResetCommandBuffer(cmd.commandLBVHComputeBuffer, /*VkCommandBufferResetFlagBits*/ 0);
-
-        }
-
-        bool force_write = true;
-        bool dont_write = false;
-        bool failed = false;
-        if (false) {
-            vkQueueWaitIdle(computeQueue);
-
-            std::vector<LBVHNode> LBVH(NUM_LBVH_ELEMENTS); // Allocate vector to hold the copied data
-            std::memcpy(LBVH.data(), bfr.bufferMapped_lbvh_LBVH_hist_vis, sizeof(LBVHNode) * NUM_LBVH_ELEMENTS);
-
-
-            std::vector<int> visited(NUM_LBVH_ELEMENTS, 0);
-            traverse(0, LBVH.data(), visited);
-
-
-            //std::cout << "failed nodes:";
-            for (size_t i = 0; i < visited.size(); i++) {
-                if (visited[i] == 0 || visited[i] > 2) {
-                    //std::cout <<i<< ",";
-                    failed = true;
-                    break;
-                }
-            }
-            //std::cout << std::endl;
-
-
-            if ((failed || force_write) && !dont_write) {
-                std::ofstream myfile;
-                myfile.open("lbvh.csv");
-                myfile << "Element, g_lbvh.left, g_lbvh.right, g_lbvh.primitiveIdx, g_lbvh.aabbMinX, g_lbvh.aabbMinY, g_lbvh.aabbMinZ, g_lbvh.aabbMaxX, g_lbvh.aabbMaxY, g_lbvh.aabbMaxZ, g_lbvh.mass, g_lbvh.cx, g_lbvh.cy, g_lbvh.cz\n";
-                for (uint32_t i = 0; i < NUM_LBVH_ELEMENTS; i++) {
-                    myfile
-                        << i << ", "
-                        << LBVH[i].left << ", "
-                        << LBVH[i].right << ", "
-                        << LBVH[i].primitiveIdx << ", "
-                        << LBVH[i].aabbMinX << ", "
-                        << LBVH[i].aabbMinY << ", "
-                        << LBVH[i].aabbMinZ << ", "
-                        << LBVH[i].aabbMaxX << ", "
-                        << LBVH[i].aabbMaxY << ", "
-                        << LBVH[i].aabbMaxZ << ", "
-                        << LBVH[i].mass << ", "
-                        << LBVH[i].cx << ", "
-                        << LBVH[i].cy << ", "
-                        << LBVH[i].cz << "\n";
-                }
-                myfile.close();
-
-
-
-                myfile.open("mc_sorted.csv");
-                myfile << "g_elements_in.mortonCode, g_elements_in.elementIdx\n";
-                for (uint32_t i = 0; i < NUM_ELEMENTS; i++) {
-                    myfile << MC[i].mortonCode << ", " << MC[i].elementIdx << "\n";
-                }
-                myfile.close();
-
-                myfile.open("mc_unsorted.csv");
-                myfile << "g_elements_in.mortonCode, g_elements_in.elementIdx\n";
-                for (uint32_t i = 0; i < NUM_ELEMENTS; i++) {
-                    myfile << MC[i].mortonCode << ", " << MC[i].elementIdx << "\n";
-                }
-                myfile.close();
-
-                if (failed) {
-                    std::cout << "Hierarchy Failed!" << std::endl;
-                    //throw std::runtime_error("TEST FAILED.");
-                }
-            }
-            else
-                std::cout << "Hierarchy OK!" << std::endl;
         }
 
         if (gotAtleatOneLVBH) {
@@ -958,10 +896,6 @@ void Engine::drawFrame() {
 
             }
 
-            // transfer points to workable cpu adress
-            std::vector<point3D> points(NUM_ELEMENTS); // Allocate vector to hold the copied data
-            std::memcpy(points.data(), bfr.bufferMapped_lbvh_particles_host_vis, sizeof(point3D) * NUM_ELEMENTS);
-
 
             // 2.b update particle forces by traversing LBVH tree on CPU :(
             // =============== FORCES CPU ==========================
@@ -970,78 +904,19 @@ void Engine::drawFrame() {
 
             uint32_t firstNodeIndex = NUM_ELEMENTS - 1;
 
-            std::vector<uint32_t> queue_prev;
-            queue_prev.reserve(NUM_ELEMENTS - 1);
-            std::vector<uint32_t> queue_this;
-            queue_this.reserve(NUM_ELEMENTS - 1);
             bool is_leaf = false;
             for (uint32_t i = 0; i < NUM_ELEMENTS; i++)
             {
                 LBVHNode node = nodes[firstNodeIndex + i];
-                uint32_t trueID = node.primitiveIdx;
-                glm::vec3 c(node.cx, node.cy, node.cz);
-                glm::vec3 force(0.0f, 0.0f, 0.0f);
-                uint32_t level = 0;
-                uint32_t evals = 0;
-                queue_prev.push_back(0);
-                while (queue_prev.size() > 0)
-                {
-                    for (uint32_t n : queue_prev)
-                    {
-                        if (n == firstNodeIndex + i) // self
-                            continue;
-                        is_leaf = n >= firstNodeIndex;
-                        float dx = nodes[n].aabbMaxX - nodes[n].aabbMinX;
-                        float dy = nodes[n].aabbMaxY - nodes[n].aabbMinY;
-                        float dz = nodes[n].aabbMaxZ - nodes[n].aabbMinZ;
-                        float s = glm::length(glm::vec3(dx, dy, dz));
-                        glm::vec3 n_c(nodes[n].cx, nodes[n].cy, nodes[n].cz);
-                        glm::vec3 distV = n_c - c;
-                        float dist = glm::length(distV);
-                        float theta = s / dist;
-                        dist += 0.001f;
-                        // if failed test
-                        if (theta >= 0.5)
-                        {   // if not leaf push children
-                            if (!is_leaf) {
-                                queue_this.push_back(nodes[n].left);
-                                queue_this.push_back(nodes[n].right);
-                            }
-                        }
-                        if (theta < 0.5 || (is_leaf))
-                        {
-                            glm::vec3 dvd = distV / (dist * dist * dist);
-                            //if (dist > 0.2)
-                            //    std::cout << "level: " << level << " | node: " << n << " | s = " << s << " | dist = " << dist << " | theta = " << theta << std::endl;
-                            force += nodes[n].mass * dvd;
-                            //if (dist < 0.01f) {
-                            //    force -= nodes[n].mass * distV * glm::exp(-1.0f* GRAV_CONST * dist);
-                            //}
-                            evals++;
-                        }
-                    }
-                    queue_prev = queue_this;
-                    queue_this.clear();
-                    level++;
 
-
-                }
-                //std::cout << " | node: " << i<< " | force evals= " << evals << " | pos = " << c << " | force total = " << force << std::endl;
-                points[trueID].acceleration = force/ node.mass; // a = F/m <<<<
-                queue_this.clear();
-
-                // for update bounary box
                 glm::vec3 min_this(node.aabbMinX, node.aabbMinY, node.aabbMinZ);
                 glm::vec3 max_this(node.aabbMaxX, node.aabbMaxY, node.aabbMaxZ);
 
                 min = glm::min(min, glm::vec3(node.aabbMinX, node.aabbMinY, node.aabbMinZ));
                 max = glm::max(max, glm::vec3(node.aabbMaxX, node.aabbMaxY, node.aabbMaxZ));
 
-
             }
 
-
-            //std::cout << min << " | " << max << std::endl;
             min -= glm::vec3(P_R * 10.0f);
             max += glm::vec3(P_R * 10.0f);
 
@@ -1052,29 +927,26 @@ void Engine::drawFrame() {
             pushConstMC.g_max_y = max[1];
             pushConstMC.g_max_z = max[2];
 
-            // 3.1 get updated particle data to device. again, in two stages
-            std::memcpy(bfr.bufferMapped_lbvh_particles_host_vis, points.data(), sizeof(point3D) * NUM_ELEMENTS);
         }
 
-        if (true) {
-            // request copy data to device.
+        // =========================== UPDATE PARTICLES AND BBOXES =============================
+        submitInfo = {};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &cmd.commandLBVHComputeBuffer;
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = &sync.lbvhComputeSemaphore;
 
-            submitInfo = {};
-            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &cmd.commandLBVHComputeBuffer;
-            submitInfo.signalSemaphoreCount = 1;
-            submitInfo.pSignalSemaphores = &sync.lbvhComputeSemaphore;
+        recordLBVHComputeCommandBuffer2(cmd.commandLBVHComputeBuffer, recalculateBBs);
 
-            recordLBVHComputeCommandBuffer2(cmd.commandLBVHComputeBuffer, recalculateBBs);
-            VkResult res0 = vkQueueSubmit(computeQueue, 1, &submitInfo, sync.lbvhComputeFence);
-            if (res0 != VK_SUCCESS) {
-                throw std::runtime_error("failed to submit LBVH compute command buffer!");
-            };
-            vkQueueWaitIdle(computeQueue);
-            vkResetCommandBuffer(cmd.commandLBVHComputeBuffer, /*VkCommandBufferResetFlagBits*/ 0);
+        VkResult res0 = vkQueueSubmit(computeQueue, 1, &submitInfo, sync.lbvhComputeFence);
+        if (res0 != VK_SUCCESS) {
+            throw std::runtime_error("failed to submit LBVH compute command buffer!");
+        };
 
-        }
+        vkWaitForFences(device, 1, &sync.lbvhComputeFence, VK_TRUE, UINT64_MAX);
+        vkResetFences(device, 1, &sync.lbvhComputeFence);
+        //vkResetCommandBuffer(cmd.commandLBVHComputeBuffer, /*VkCommandBufferResetFlagBits*/ 0);
 
     }
 
@@ -1212,3 +1084,78 @@ void Engine::traverse(uint32_t index, LBVHNode* LBVH, std::vector<int>& visited)
     
 
 }
+
+//bool force_write = true;
+//bool dont_write = false;
+//bool failed = false;
+//if (false) {
+//    std::vector<MortonCodeElement> MC = bfr.MC;
+//
+//    vkQueueWaitIdle(computeQueue);
+//
+//    std::vector<LBVHNode> LBVH(NUM_LBVH_ELEMENTS); // Allocate vector to hold the copied data
+//    std::memcpy(LBVH.data(), bfr.bufferMapped_lbvh_LBVH_hist_vis, sizeof(LBVHNode) * NUM_LBVH_ELEMENTS);
+//
+//
+//    std::vector<int> visited(NUM_LBVH_ELEMENTS, 0);
+//    traverse(0, LBVH.data(), visited);
+//
+//
+//    //std::cout << "failed nodes:";
+//    for (size_t i = 0; i < visited.size(); i++) {
+//        if (visited[i] == 0 || visited[i] > 2) {
+//            //std::cout <<i<< ",";
+//            failed = true;
+//            break;
+//        }
+//    }
+//    //std::cout << std::endl;
+//
+//
+//    if ((failed || force_write) && !dont_write) {
+//        std::ofstream myfile;
+//        myfile.open("lbvh.csv");
+//        myfile << "Element, g_lbvh.left, g_lbvh.right, g_lbvh.primitiveIdx, g_lbvh.aabbMinX, g_lbvh.aabbMinY, g_lbvh.aabbMinZ, g_lbvh.aabbMaxX, g_lbvh.aabbMaxY, g_lbvh.aabbMaxZ, g_lbvh.mass, g_lbvh.cx, g_lbvh.cy, g_lbvh.cz\n";
+//        for (uint32_t i = 0; i < NUM_LBVH_ELEMENTS; i++) {
+//            myfile
+//                << i << ", "
+//                << LBVH[i].left << ", "
+//                << LBVH[i].right << ", "
+//                << LBVH[i].primitiveIdx << ", "
+//                << LBVH[i].aabbMinX << ", "
+//                << LBVH[i].aabbMinY << ", "
+//                << LBVH[i].aabbMinZ << ", "
+//                << LBVH[i].aabbMaxX << ", "
+//                << LBVH[i].aabbMaxY << ", "
+//                << LBVH[i].aabbMaxZ << ", "
+//                << LBVH[i].mass << ", "
+//                << LBVH[i].cx << ", "
+//                << LBVH[i].cy << ", "
+//                << LBVH[i].cz << "\n";
+//        }
+//        myfile.close();
+//
+//
+//
+//        myfile.open("mc_sorted.csv");
+//        myfile << "g_elements_in.mortonCode, g_elements_in.elementIdx\n";
+//        for (uint32_t i = 0; i < NUM_ELEMENTS; i++) {
+//            myfile << MC[i].mortonCode << ", " << MC[i].elementIdx << "\n";
+//        }
+//        myfile.close();
+//
+//        myfile.open("mc_unsorted.csv");
+//        myfile << "g_elements_in.mortonCode, g_elements_in.elementIdx\n";
+//        for (uint32_t i = 0; i < NUM_ELEMENTS; i++) {
+//            myfile << MC[i].mortonCode << ", " << MC[i].elementIdx << "\n";
+//        }
+//        myfile.close();
+//
+//        if (failed) {
+//            std::cout << "Hierarchy Failed!" << std::endl;
+//            //throw std::runtime_error("TEST FAILED.");
+//        }
+//    }
+//    else
+//        std::cout << "Hierarchy OK!" << std::endl;
+//}

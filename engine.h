@@ -64,6 +64,9 @@ private:
 	void recordComputeCommandBuffer(VkCommandBuffer commandBuffer);
 	void recordLBVHComputeCommandBuffer(VkCommandBuffer commandBuffer, bool recalculate);
 	void recordLBVHComputeCommandBuffer2(VkCommandBuffer commandBuffer, bool recalculate);
+	void doLBVH_MC_RADIX();
+	bool redoLBVH_RADIX();
+	void doLBVH_Hierarchy();
 	//void recordComputeCommandBuffer(VkCommandBuffer commandBuffer);
 	void recreateSwapChain();
 	void cleanup();

@@ -14,7 +14,7 @@ const float P_R = 0.005f;
 //const std::vector<glm::vec3> poits2d =  Misc::seedUniformPoints2D(50);
 //const uint32_t NUM_ELEMENTS = static_cast<uint32_t>(size(poits2d));
 
-const uint32_t NUM_ELEMENTS = 400;// glm::pow(10, 3);
+const uint32_t NUM_ELEMENTS = 1024;// glm::pow(10, 3);
 const uint32_t NUM_LBVH_ELEMENTS = NUM_ELEMENTS + NUM_ELEMENTS - 1;
 const uint32_t NUM_BB_POINTS = ((NUM_ELEMENTS -1) + 1) * 12 * 2; // + external box
                             // num internal nodes * num box edges * num points

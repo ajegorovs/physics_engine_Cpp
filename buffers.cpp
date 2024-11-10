@@ -412,7 +412,7 @@ void Buffers::createBuffer_lbvh_points(std::vector<glm::vec3> points, glm::vec3 
         glm::vec3 vel_dir = glm::normalize(glm::cross(d, glm::vec3(0.0f,0.0f,1.0f)));
         // num particles at center (volume of 4/3 pi dist^3) is K = dist^3/R^3 * N = dist^3/(1/2)^3*N = 2^3*dist^3*N
         // total mass of smaller sphere M = m*2^3*dist^3*N, if m  = 1/N -> M = 2^3*dist^3; v = sqrt(MG/d)
-        glm::vec3 orbital_vel = 3.0f*vel_dir * glm::sqrt(8.0f * dist*dist*dist* GRAV_CONST / (dist + 0.000001f));
+        glm::vec3 orbital_vel = 3.0f*vel_dir * glm::sqrt(8.0f * dist*dist*dist* 1 / (dist + 0.000001f));
         
         //float angle = glm::acos(d[0] / dist);
         //glm::vec3 vel_dir(-glm::sin(angle), glm::cos(angle), 0.0f);
@@ -435,10 +435,10 @@ void Buffers::createBuffer_lbvh_points(std::vector<glm::vec3> points, glm::vec3 
 
 void Buffers::createBuffer_lbvh_points_2sphere()
 {
-    glm::vec3 center(0.5f, 0.5f, 0.5f);
+    glm::vec3 center(0.5f, 0.7f, 0.5f);
     float total_mass = 0.01f;
-    float blob_r = 0.08f;
-    float distance = 0.45f;// 1.0f - 2.0f * blob_r - 10.0f * P_R;
+    float blob_r = 0.25f;
+    float distance = 0.85f;// 1.0f - 2.0f * blob_r - 10.0f * P_R;
     std::array<glm::vec3, 2> centers = {
         center + glm::vec3(distance / 2, 0.0f, 0.0f),
         center - glm::vec3(distance / 2, -0.0f, -0.0f)
@@ -447,7 +447,7 @@ void Buffers::createBuffer_lbvh_points_2sphere()
         glm::vec4(1.0f, 0.0f, 0.0f,1.0f),
         glm::vec4(0.0f, 0.0f, 1.0f,1.0f)
     };
-    float vel_mag = 235.0f * glm::sqrt((total_mass / 2) / distance);
+    float vel_mag = 0.0f * glm::sqrt((total_mass / 2) / distance);
 
 
     //std::vector<point3D> particles;
@@ -475,8 +475,8 @@ void Buffers::createBuffer_lbvh_points_2sphere()
         p.velocity = dir * glm::vec3(1.0f, 0.0f, 0.0f) * vel_mag + dr;
         p.mass = total_mass / NUM_ELEMENTS;
         p.group_id = static_cast<float>(thisGroup);
-        if (i % (NUM_ELEMENTS / 2) == 0) {
-            p.mass = 450 * total_mass / NUM_ELEMENTS;
+        if (i == 0) { //% (NUM_ELEMENTS / 2)
+            p.mass = 50 * total_mass / NUM_ELEMENTS;
             p.color = glm::vec4(0.0f, 1.0f, 1.0f, 1.0f);
             p.velocity = -0.1 * dir * vel_mag * glm::vec3(1.0f, 0.0f, 0.0f);
             p.position = center + dir * glm::vec3(0.0f, 0.7f, 0.0f);
@@ -644,14 +644,11 @@ void Buffers::createBuffer_lbvh_elementsBuffer()
 void Buffers::createBuffer_lbvh_mortonCode()
 {
 
-    std::vector<MortonCodeElement> importedData = Misc::importFromCSV("mc_unsorted2.csv");
-
     createBufferDeviceLocalData(
         sizeof(MortonCodeElement) * NUM_ELEMENTS,
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         buffer_lbvh_mortonCode,
-        bufferMemory_lbvh_mortonCode,
-        static_cast<const void*>(importedData.data())
+        bufferMemory_lbvh_mortonCode
     );
 
 }
@@ -692,6 +689,8 @@ void Buffers::createBuffer_lbvh_mortonCodePingPong()
 
 void Buffers::createBuffer_lbvh_LBVH()
 {
+    MC.resize(NUM_ELEMENTS);
+
     createBufferDeviceLocalData(
         sizeof(LBVHNode) * NUM_LBVH_ELEMENTS,
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -722,6 +721,58 @@ void Buffers::createBuffer_lbvh_LBVHConstructionInfo()
         buffer_lbvh_LBVHConstructionInfo,
         bufferMemory_lbvh_LBVHConstructionInfo
     );
+
+}
+
+void Buffers::createBuffer_lbvh_global_BBs()
+{
+    glm::vec3 min = lbvh_BB[0];
+    glm::vec3 max = lbvh_BB[1];
+    GlobalBoundingBox BB{ min.x, min.y, min.z, max.x, max.y, max.z };
+    VkDeviceSize size = sizeof(GlobalBoundingBox);
+
+    // on host. must be transfer src once (here) and then only dst.
+    createBuffer(
+        size,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        buffer_lbvh_global_BBs_host_vis,
+        bufferMemory_lbvh_global_BBs_host_vis
+    );
+
+    vkMapMemory(*pDevice, bufferMemory_lbvh_global_BBs_host_vis, 0,
+        size, 0, &bufferMapped_lbvh_global_BBs_host_vis);
+    memcpy(bufferMapped_lbvh_global_BBs_host_vis, &BB, (size_t)size);
+    // device must be transfter dst once (here) and then only src.
+    createBuffer(
+        size,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        buffer_lbvh_global_BBs,
+        bufferMemory_lbvh_global_BBs);
+
+    copyBuffer(buffer_lbvh_global_BBs_host_vis, buffer_lbvh_global_BBs, size);
+
+}
+
+void Buffers::createBuffer_lbvh_get_init_BBs()
+{
+    glm::vec3 min(-10000.f, -10000.f, -10000.f);
+    glm::vec3 max( 10000.f,  10000.f,  10000.f);
+
+    glm::vec3 dr(P_R);
+
+    for (point3D p : points_lbvh)
+    {
+        glm::vec3 min_this = p.position - dr;
+        glm::vec3 max_this = p.position + dr;
+
+        min = glm::min(min, min_this);
+        max = glm::max(max, max_this);
+    }
+
+    lbvh_BB[0] = min;
+    lbvh_BB[1] = max;
 }
 
 void Buffers::createBuffer_uniformDeltaTime()
@@ -750,7 +801,7 @@ void Buffers::createBuffer_physics_particles_constants()
     // maybe pre-define attractor params in physics.h?
     StructParticleSystemParams particleParams;
     particleParams.num_attractors = NUM_ATTRACTORS;
-    particleParams.grav_const = GRAV_CONST;
+    particleParams.grav_const = 1;
     particleParams.particle_count = PARTICLE_COUNT;
     particleParams.blob_r_min = BLOB_R_MIN;
     particleParams.blob_r_max = BLOB_R_MAX;

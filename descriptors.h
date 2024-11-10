@@ -50,7 +50,8 @@ public:
 		VkBuffer& bufferMortonCodePingPong,
 		VkBuffer& bufferLBVH,
 		VkBuffer& bufferLBVHConstructionInfo,
-		VkBuffer& bufferLBVHParticles
+		VkBuffer& bufferLBVHParticles,
+		VkBuffer& bufferGlobalBB
 	);
 	
 	void cleanupDSL();

@@ -205,6 +205,14 @@ struct StructObjectTransformations {
     std::array<glm::mat4, 10> model;
 };
 
+struct GlobalBoundingBox {
+    float minX;
+    float minY;
+    float minZ;
+    float maxX;
+    float maxY;
+    float maxZ;
+};
 
 #define INVALID_POINTER 0x0
 

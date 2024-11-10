@@ -285,7 +285,8 @@ void Descriptors::createDS_lbvh(
     VkBuffer& bufferMortonCodePingPong,
     VkBuffer& bufferLBVH,
     VkBuffer& bufferLBVHConstructionInfo,
-    VkBuffer& bufferLBVHParticles
+    VkBuffer& bufferLBVHParticles,
+    VkBuffer& bufferGlobalBB
 )
 {
     uint32_t num_sets = static_cast<uint32_t>(descriptorSetLayout_lbvh.size());
@@ -301,45 +302,31 @@ void Descriptors::createDS_lbvh(
         throw std::runtime_error("failed to allocate descriptor sets!");
     }
 
-    VkDescriptorBufferInfo bufferElements_info{};
-    bufferElements_info.buffer = bufferElements;
-    bufferElements_info.offset = 0;
-    bufferElements_info.range = sizeof(Element) * NUM_ELEMENTS;
+    VkDescriptorBufferInfo bufferElements_info{ bufferElements  ,0, sizeof(Element) * NUM_ELEMENTS };
 
-    VkDescriptorBufferInfo bufferMortonCode_info{};
-    bufferMortonCode_info.buffer = bufferMortonCode;
-    bufferMortonCode_info.offset = 0;
-    bufferMortonCode_info.range = sizeof(MortonCodeElement) * NUM_ELEMENTS;
+    VkDescriptorBufferInfo bufferMortonCode_info{ bufferMortonCode , 0, sizeof(MortonCodeElement) * NUM_ELEMENTS };
 
-    VkDescriptorBufferInfo bufferMortonCodePingPong_info{};
-    bufferMortonCodePingPong_info.buffer = bufferMortonCodePingPong;
-    bufferMortonCodePingPong_info.offset = 0;
-    bufferMortonCodePingPong_info.range = sizeof(MortonCodeElement) * NUM_ELEMENTS;
+    VkDescriptorBufferInfo bufferMortonCodePingPong_info{ bufferMortonCodePingPong , 0, sizeof(MortonCodeElement) * NUM_ELEMENTS };
 
-    VkDescriptorBufferInfo bufferLBVH_info{};
-    bufferLBVH_info.buffer = bufferLBVH;
-    bufferLBVH_info.offset = 0;
-    bufferLBVH_info.range = sizeof(LBVHNode) * NUM_LBVH_ELEMENTS;
+    VkDescriptorBufferInfo bufferLBVH_info{ bufferLBVH , 0, sizeof(LBVHNode) * NUM_LBVH_ELEMENTS };
 
-    VkDescriptorBufferInfo LBVHConstructionInfo_info{};
-    LBVHConstructionInfo_info.buffer = bufferLBVHConstructionInfo;
-    LBVHConstructionInfo_info.offset = 0;
-    LBVHConstructionInfo_info.range = sizeof(LBVHConstructionInfo) * NUM_LBVH_ELEMENTS;
+    VkDescriptorBufferInfo LBVHConstructionInfo_info{ bufferLBVHConstructionInfo , 0, sizeof(LBVHConstructionInfo) * NUM_LBVH_ELEMENTS };
 
-    VkDescriptorBufferInfo bufferParticleInfo{};
-    bufferParticleInfo.buffer = bufferLBVHParticles;
-    bufferParticleInfo.offset = 0;
-    bufferParticleInfo.range = sizeof(point3D) * NUM_ELEMENTS;
+    VkDescriptorBufferInfo bufferParticleInfo{ bufferLBVHParticles , 0, sizeof(point3D) * NUM_ELEMENTS };
+
+    VkDescriptorBufferInfo bufferGlobalBBInfo{ bufferLBVHParticles , 0, sizeof(GlobalBoundingBox)};
 
     // sets: 0- to Morton code, 1- sort code, 2-construct tree, 3-calc BBs, 
-    // 4- update particles, 5- update particle bounding boxes. Bindings in order of elements.
-    std::vector<std::vector<VkDescriptorBufferInfo>> descriptorBufferInfos = {
-        {bufferMortonCode_info, bufferElements_info},
-        {bufferMortonCode_info, bufferMortonCodePingPong_info},
-        {bufferMortonCode_info, bufferElements_info, bufferLBVH_info, LBVHConstructionInfo_info},
-        {bufferLBVH_info, LBVHConstructionInfo_info},
+    // 4- update particles, 5- update particle bounding boxes., 6- experimental shader tree traversal.
+    // Bindings in order of entries.
+    std::vector<std::vector<VkDescriptorBufferInfo>> descriptorBufferInfos = { // change DSL binding counts!
+        {bufferMortonCode_info  , bufferElements_info},
+        {bufferMortonCode_info  , bufferMortonCodePingPong_info},
+        {bufferMortonCode_info  , bufferElements_info       , bufferLBVH_info, LBVHConstructionInfo_info},
+        {bufferLBVH_info        , LBVHConstructionInfo_info},
         {bufferParticleInfo},
-        {bufferParticleInfo, bufferElements_info}
+        {bufferParticleInfo, bufferElements_info},
+        {bufferParticleInfo, bufferLBVH_info, bufferGlobalBBInfo}
     };
 
 
@@ -504,7 +491,7 @@ void Descriptors::createDescriptorSetLayout(
 void Descriptors::createDSL_lbvh()
 {
     // All sets and bindings are of type storage buffer and are used by compute stage;
-    std::vector<uint32_t> bindings_per_set = { 2,2,4,2,1,2 };
+    std::vector<uint32_t> bindings_per_set = { 2,2,4,2,1,2,3 };// added set = 6.
 
     uint32_t num_sets = static_cast<uint32_t>(bindings_per_set.size());
 

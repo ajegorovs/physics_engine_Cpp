@@ -114,7 +114,7 @@ bool Device2::isDeviceSuitable(VkPhysicalDevice physicalDevice) {
 
     return indices.isComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.samplerAnisotropy;
 }
-// local: pickPhysicalDevice - private
+
 VkSampleCountFlagBits Device2::getMaxUsableSampleCount() {
     VkPhysicalDeviceProperties physicalDeviceProperties;
     vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
@@ -129,9 +129,9 @@ VkSampleCountFlagBits Device2::getMaxUsableSampleCount() {
 
     return VK_SAMPLE_COUNT_1_BIT;
 }
-// vulkan init - public
+
 void Device2::pickPhysicalDevice() {
-    //timer.line_init("pickPhysicalDevice");
+    
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(*pInstance, &deviceCount, nullptr);
 

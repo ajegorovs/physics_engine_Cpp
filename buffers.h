@@ -18,6 +18,9 @@ public:
 	std::vector<uint32_t> indices;
 	//std::vector<VertexBase> line_vertices;
 	VkBuffer buffer_lines;
+
+	std::vector<MortonCodeElement> MC;
+
 	std::vector<VkBuffer> buffer_storageTransformations;
 	std::vector<VkBuffer> buffer_uniformMVP;
 	std::vector<VkBuffer> buffer_uniformDeltaTime;
@@ -35,11 +38,14 @@ public:
 	VkBuffer buffer_lbvh_LBVH;
 	VkBuffer buffer_lbvh_LBVHConstructionInfo;
 	VkBuffer buffer_lbvh_LBVH_host_vis;
+	VkBuffer buffer_lbvh_global_BBs;
+	VkBuffer buffer_lbvh_global_BBs_host_vis;
 
 	VkDeviceMemory bufferMemory_lbvh_LBVH_host_vis;
 	VkDeviceMemory bufferMemory_lbvh_particles_host_vis;
 	VkDeviceMemory bufferMemory_lbvh_mortonCode_host_vis;
 	VkDeviceMemory bufferMemory_lbvh_mortonCode_host_vis2;
+	VkDeviceMemory bufferMemory_lbvh_global_BBs_host_vis;
 
 
 	Buffers();
@@ -107,6 +113,8 @@ public:
 	void createBuffer_lbvh_LBVH();
 	void createBuffer_lbvh_LBVH_hist_vis();
 	void createBuffer_lbvh_LBVHConstructionInfo();
+	void createBuffer_lbvh_global_BBs();
+	void createBuffer_lbvh_get_init_BBs();
 
 
 	void createBuffer_uniformDeltaTime();
@@ -128,6 +136,7 @@ public:
 	void* bufferMapped_lbvh_particles_host_vis;
 	void* bufferMapped_lbvh_mortonCode_host_vis;
 	void* bufferMapped_lbvh_mortonCode_host_vis2;
+	void* bufferMapped_lbvh_global_BBs_host_vis;
 
 	VkBuffer vertexBuffer;
 	VkBuffer indexBuffer;
@@ -150,10 +159,12 @@ private:
 	VkDeviceMemory bufferMemory_lbvh_mortonCodePingPong;
 	VkDeviceMemory bufferMemory_lbvh_LBVH;
 	VkDeviceMemory bufferMemory_lbvh_LBVHConstructionInfo;
+	VkDeviceMemory bufferMemory_lbvh_global_BBs;
 
 	VkDeviceMemory vertexBufferMemory;
 	VkDeviceMemory indexBufferMemory;
 	VkDeviceMemory bufferMemory_lines;
 
 	std::vector<point3D> points_lbvh;
+	std::array<glm::vec3,2> lbvh_BB;
 };

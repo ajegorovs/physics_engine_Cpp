@@ -15,6 +15,7 @@ class Compute {
 public:
     VkPipelineLayout computePipelineLayout;
     VkPipelineLayout computePL_lbvh_particles_update;
+    VkPipelineLayout computePL_lbvh_particles_update2;
     VkPipelineLayout computePL_lbvh_bounding_box_update;
     VkPipelineLayout computePL_lbvh_morton_codes;
     VkPipelineLayout computePL_lbvh_single_radixsort;
@@ -23,6 +24,7 @@ public:
 
     VkPipeline computePipeline;
     VkPipeline computeP_lbvh_particles_update;
+    VkPipeline computeP_lbvh_particles_update2;
     VkPipeline computeP_lbvh_bounding_box_update;
     VkPipeline computeP_lbvh_morton_codes;
     VkPipeline computeP_lbvh_single_radixsort;

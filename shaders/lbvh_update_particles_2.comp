@@ -1,0 +1,162 @@
+
+#version 460
+
+#define MAX_ELEMENTS 1024 
+#extension GL_EXT_shader_atomic_float2: enable
+
+struct GlobalBoundingBox {
+    float minX;
+    float minY;
+    float minZ;
+    float maxX;
+    float maxY;
+    float maxZ;
+};
+
+struct Particle {
+	vec4 color;
+	vec3 position;
+	vec3 velocity;
+	vec3 acceleration;
+	float mass;
+	float damping;
+	float group_id;
+};
+
+struct LBVHNode {
+    int left;
+    int right;
+    uint primitiveIdx;
+    float aabbMinX;
+    float aabbMinY;
+    float aabbMinZ;
+    float aabbMaxX;
+    float aabbMaxY;
+    float aabbMaxZ;
+	float mass;
+	float cx;
+	float cy;
+	float cz;
+};
+
+vec3 min_vec3(vec3 a, vec3 b) {
+    return vec3(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z));
+}
+
+vec3 max_vec3(vec3 a, vec3 b) {
+    return vec3(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z));
+}
+
+layout (local_size_x = 256) in;
+
+layout (push_constant, std430) uniform PushConstants {
+    float deltaTime;
+	uint g_num_elements;
+};
+
+layout (std430, set = 6, binding = 0) buffer particles {
+    Particle g_particles[];
+};
+
+layout (std430, set = 6, binding = 1) readonly buffer lbvh {
+    LBVHNode nodes[];
+};
+
+layout (std430, set = 6, binding = 2) buffer boundingbox {
+    GlobalBoundingBox g_BB;
+};
+
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+	
+    if (idx >= g_num_elements || deltaTime <= 0) {
+        return;
+    }
+	// ============= TREEEEEEEEEE TRAVERSAL ===============
+	
+	uint firstNodeIndex = g_num_elements - 1;
+    
+    uint queue_prev[MAX_ELEMENTS];
+    uint queue_this[MAX_ELEMENTS];
+    int queue_prev_size = 0;
+    int queue_this_size = 0;
+	
+	LBVHNode node = nodes[firstNodeIndex + idx];
+	uint trueID = node.primitiveIdx;
+	vec3 c = vec3(node.cx, node.cy, node.cz);
+	vec3 force = vec3(0.0);
+	int level = 0;
+	int evals = 0;
+
+	queue_prev[0] = 0;
+	queue_prev_size = 1;
+
+	while (queue_prev_size > 0) {
+		queue_this_size = 0;
+		for (int j = 0; j < queue_prev_size; j++) {
+			uint n = queue_prev[j];
+			if (n == firstNodeIndex + idx) // skip self
+				continue;
+
+			bool is_leaf = n >= firstNodeIndex;
+			
+			float dx = nodes[n].aabbMaxX - nodes[n].aabbMinX;
+			float dy = nodes[n].aabbMaxY - nodes[n].aabbMinY;
+			float dz = nodes[n].aabbMaxZ - nodes[n].aabbMinZ;
+
+			float s = length(vec3(dx,dy, dz));
+			vec3 n_c = vec3(nodes[n].cx, nodes[n].cy, nodes[n].cz);
+			vec3 distV = n_c - c;
+			float dist = length(distV) + 0.001;
+			float theta = s / dist;
+
+			if (theta >= 0.5) {
+				if (!is_leaf) {
+					queue_this[queue_this_size++] = nodes[n].left;
+					queue_this[queue_this_size++] = nodes[n].right;
+				}
+			}
+
+			if (theta < 0.5 || is_leaf) {
+				vec3 dvd = distV / (dist * dist * dist);
+				force += nodes[n].mass * distV * pow(dist, -3);
+				evals++;
+			}
+		}
+
+		// Swap queues for the next level
+		for (int k = 0; k < queue_this_size; k++) {
+			queue_prev[k] = queue_this[k];
+		}
+		queue_prev_size = queue_this_size;
+		level++;
+	}
+
+	g_particles[trueID].acceleration = force / node.mass;
+	g_particles[trueID].velocity += g_particles[trueID].acceleration * deltaTime;
+	g_particles[trueID].position += g_particles[trueID].velocity * deltaTime;
+	
+	
+	
+	float vel_damp = 0.7;
+	vec3 pos = g_particles[trueID].position;
+	
+	//atomicMin(g_BB.minX, pos.x - 0.005);
+    //atomicMin(g_BB.minY, pos.y - 0.005);
+    //atomicMin(g_BB.minZ, pos.z - 0.005);
+    //atomicMax(g_BB.minX, pos.x + 0.005);
+    //atomicMax(g_BB.minY, pos.y + 0.005);
+    //atomicMax(g_BB.minZ, pos.z + 0.005);
+	
+	
+	if ((pos.x <= -0.5) || (pos.x  >= 1.5)) {
+			g_particles[trueID].velocity.x *= -vel_damp;
+		}
+		if ((pos.y <= -1.5) || (pos.y >= 1.5)) {
+			g_particles[trueID].velocity.y *= -vel_damp;
+		}
+		if ((pos.z <= -vel_damp) || (pos.z >= 1.5)) {
+			g_particles[trueID].velocity.z *= -vel_damp;
+		}	
+}

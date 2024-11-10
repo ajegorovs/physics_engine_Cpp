@@ -12,11 +12,13 @@ private:
 	VkInstance* pInstance;
 	VkSurfaceKHR* pSurface;
 	VkDevice* pDevice;
-	const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, 
+	const std::vector<const char*> deviceExtensions = { 
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME, 
+		//VK_EXT_SHADER_ATOMIC_FLOAT_2_EXTENSION_NAME,
 		"VK_EXT_extended_dynamic_state",  
 		"VK_EXT_extended_dynamic_state2",  
 		"VK_EXT_extended_dynamic_state3" ,
-		"VK_EXT_shader_object",
+		"VK_EXT_shader_object"
 	};
 	bool checkDeviceExtensionSupport(VkPhysicalDevice device);
 	bool isDeviceSuitable(VkPhysicalDevice device);
