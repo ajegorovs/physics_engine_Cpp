@@ -8,8 +8,8 @@
 #include "structs.h"
 #include <glm/glm.hpp>
 
-const bool DRAW_BBS = true;
-const bool DRAW_BBS_only_outer = false;
+const bool DRAW_BBS = false;
+const bool DRAW_BBS_INTERNAL = true;
 const float P_R = 0.005f;
 //const std::vector<glm::vec3> poits2d =  Misc::seedUniformPoints2D(50);
 //const uint32_t NUM_ELEMENTS = static_cast<uint32_t>(size(poits2d));

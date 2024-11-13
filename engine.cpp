@@ -377,7 +377,7 @@ void Engine::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
         vkCmdSetPrimitiveTopologyEXT(commandBuffer, VK_PRIMITIVE_TOPOLOGY_POINT_LIST);
 
         vkCmdDraw(commandBuffer, NUM_ELEMENTS, 1, 0, 0);
-        if (DRAW_BBS || DRAW_BBS_only_outer) {
+        if (DRAW_BBS) {
             // --------------------
 
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, gfx.graphicsPipeline_lines);
@@ -649,7 +649,7 @@ bool Engine::redoLBVH_RADIX()
     // Radix repeated
     size_t radix_try_iters = 5;
     bool order_fail = false;
-    for (size_t i = 0; i < radix_try_iters + 1; i++) { // last (+1) not finished.
+    for (size_t i = 0; i < radix_try_iters + 1; i++) { // last ( + 1) not finished.
         order_fail = false;
         std::unordered_set<uint32_t> seenIndices;
         std::memcpy(MC.data(), bfr.bufferMapped_lbvh_mortonCode_host_vis, sizeof(MortonCodeElement) * NUM_ELEMENTS);
@@ -735,31 +735,27 @@ void Engine::doLBVH_Hierarchy()
 
     vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_hierarchy, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsHierarchy), &pushConstHierarchy);
     vkCmdBindPipeline(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_hierarchy);
-
     vkCmdBindDescriptorSets(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_hierarchy, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
-
     vkCmdDispatch(cmd.commandLBVHComputeBuffer, x, 1, 1);
 
     VkMemoryBarrier memoryBarrier3{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
     vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier3, 0, nullptr, 0, nullptr);
 
-
     vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_bounding_boxes, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsBoundingBoxes), &pushConstantsBoundingBoxes);
-
     vkCmdBindPipeline(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_bounding_boxes);
-
     vkCmdBindDescriptorSets(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_bounding_boxes, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
 
     vkCmdDispatch(cmd.commandLBVHComputeBuffer, x, 1, 1);
 
-    // Finish writing LVBH data before tranferring it to host
-    VkMemoryBarrier memoryBarrier4{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT };
-    vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, 1, &memoryBarrier4, 0, nullptr, 0, nullptr);
+    if (DRAW_BBS_INTERNAL)
+    {
+        // Finish writing LVBH data before tranferring it to host
+        VkMemoryBarrier memoryBarrier4{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT };
+        vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, 1, &memoryBarrier4, 0, nullptr, 0, nullptr);
 
-    VkBufferCopy copyLBVH{ 0,0,sizeof(LBVHNode) * NUM_LBVH_ELEMENTS };
-    vkCmdCopyBuffer(cmd.commandLBVHComputeBuffer, bfr.buffer_lbvh_LBVH, bfr.buffer_lbvh_LBVH_host_vis, 1, &copyLBVH);
-
-
+        VkBufferCopy copyLBVH{ 0,0,sizeof(LBVHNode) * NUM_LBVH_ELEMENTS };
+        vkCmdCopyBuffer(cmd.commandLBVHComputeBuffer, bfr.buffer_lbvh_LBVH, bfr.buffer_lbvh_LBVH_host_vis, 1, &copyLBVH);
+    }
 
     if (vkEndCommandBuffer(cmd.commandLBVHComputeBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to record LBVH compute command buffer!");
@@ -849,13 +845,8 @@ void Engine::drawFrame() {
         }
 
         if (gotAtleatOneLVBH) {
-            // 1. copy particle and LBVH node data to CPU
-
-            std::vector<LBVHNode> nodes(NUM_LBVH_ELEMENTS); // Allocate vector to hold the copied data
-            std::memcpy(nodes.data(), bfr.bufferMapped_lbvh_LBVH_hist_vis, sizeof(LBVHNode) * NUM_LBVH_ELEMENTS);
-
-            // 2.a get BB edges for visualization. deposit to line vertex buffer.
-            if (recalculateLBVH & (DRAW_BBS || DRAW_BBS_only_outer)) { // update buffer with BB lines. do it only after LBVH update.
+            if (recalculateLBVH & DRAW_BBS)
+            {
                 std::vector<VertexBase> verts;
                 verts.reserve(NUM_BB_POINTS);
 
@@ -869,9 +860,13 @@ void Engine::drawFrame() {
                     1.0f,
                     verts
                 );
-                if (!DRAW_BBS_only_outer) {
+
+                if (DRAW_BBS_INTERNAL) {
+                    std::vector<LBVHNode> nodes(NUM_LBVH_ELEMENTS); // Allocate vector to hold the copied data
+                    std::memcpy(nodes.data(), bfr.bufferMapped_lbvh_LBVH_hist_vis, sizeof(LBVHNode) * NUM_LBVH_ELEMENTS);
+
                     for (size_t i = 0; i < NUM_ELEMENTS - 1; i++)
-                      {
+                    {
                         BBox::getVerts(
                             glm::vec3(0.0f, 1.0f, 0.0f),
                             nodes[i].aabbMinX,
