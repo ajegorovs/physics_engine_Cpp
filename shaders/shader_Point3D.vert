@@ -40,7 +40,7 @@ void main() {
 	}
 	else
 	{
-		gl_PointSize = 4.0;
+		gl_PointSize = 8.0;
 	}
 
 }

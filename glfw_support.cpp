@@ -19,10 +19,10 @@ void GLFW_support::setWindowTitleWithFPS(float lastFrameTime) {
         // Format the window title with FPS value
         std::ostringstream title;
         if (ENABLE_PHYSICS) {
-            title << "FPS: " << std::fixed << std::setprecision(2) << fps << " [ NUM PARTICLES: " << PARTICLE_COUNT << "]";
+            title << " [NUM PARTICLES: " << PARTICLE_COUNT << "] FPS: " << std::fixed << std::setprecision(2) << fps;
         }
         else if (ENABLE_LVBH) {
-            title << "FPS: " << std::fixed << std::setprecision(2) << fps << " [ NUM ELEMENTS: " << NUM_ELEMENTS << "]";
+            title << "[NUM ELEMENTS : " << NUM_ELEMENTS << "] FPS: " << std::fixed << std::setprecision(2) << fps;
         }
         else{
             title << "FPS: " << std::fixed << std::setprecision(2) << fps;

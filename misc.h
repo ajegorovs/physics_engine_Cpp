@@ -14,6 +14,7 @@ public:
     static unsigned int expandBits(unsigned int v);
     static unsigned int morton3D(float x, float y, float z);
     static glm::vec3 rollSphereCoords(float r_min, float r_max, glm::vec3 rolls);
+    static glm::vec3 rollDisk3DCoords(float r_min, float r_max, glm::vec2 rolls);
     static std::vector<glm::vec3> seedUniformPoints2D(const int N);
     static std::vector<glm::vec3> seedUniformGridPoints3D(const int N);
     static std::vector<glm::vec3> seedUniformSpherePoints3D(const int N);

@@ -100,10 +100,10 @@ void Engine::run()
        
         //bfr.createBuffer_lbvh_points(points3d);//, glm::vec3(0.0f, 0.0f, 1.0f)
         bfr.createBuffer_lbvh_points_host_vis();
-        bfr.createBuffer_lbvh_points_2sphere();//, glm::vec3(0.0f, 0.0f, 1.0f)
+        //bfr.createBuffer_lbvh_points_2sphere();//, glm::vec3(0.0f, 0.0f, 1.0f)
+        bfr.createBuffer_lbvh_points_rot_sphere();
         bfr.createBuffer_lbvh_get_init_BBs();
         bfr.createBuffer_lbvh_global_BBs();
-        //bfr.createBuffer_lbvh_points_rot_sphere();
         bfr.createBuffer_lbvh_mortonCode();
         bfr.createBuffer_lbvh_mortonCode_host_vis();
         bfr.createBuffer_lbvh_mortonCodePingPong();
@@ -283,7 +283,7 @@ void Engine::updateBufferMapped_uniformMVP(uint32_t currentImage) {
         ),
         -glm::vec3(0.5f,0.5f,0.5f)
     );//1.8f, 1.8f, 1.8f
-    ubo.view = glm::lookAt( (1.0f + 0.0f * time)* glm::vec3(0.0f, 1.81f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt( (1.0f + 0.0f * time)* glm::vec3(0.0f, 2.81f, 3.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), swp.swapChainExtent.width / (float)swp.swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
 
@@ -447,7 +447,7 @@ void Engine::recordLBVH_particle_bb_update(VkCommandBuffer commandBuffer)
         throw std::runtime_error("failed to begin recording LBVH compute command buffer!");
     }
 
-    const StructDeltaTimeLBVH pushDeltaTime{ static_cast<float>(lastFrameTime)*0.005f, NUM_ELEMENTS};//lastTime//lastFrameTime
+    const StructDeltaTimeLBVH pushDeltaTime{ static_cast<float>(lastFrameTime)*TIME_SCALE, NUM_ELEMENTS};//lastTime//lastFrameTime
     uint32_t size = static_cast<uint32_t>(dscr.descriptorSets_lbvh[currentFrame].size());
     uint32_t x = (NUM_ELEMENTS + 256 - 1) / 256;
 

@@ -476,12 +476,14 @@ void Buffers::createBuffer_lbvh_points_2sphere()
         float b = rndDist(rndEngine);
         float c = rndDist(rndEngine);
         glm::vec3 dr = Misc::rollSphereCoords(0.0f, blob_r, glm::vec3(a, b, c));
+        //dr.z *= 0.05;
 
         //p += glm::vec3(0.5f, 0.5f, 0.5f);
         point3D p;
         p.color = colors[thisGroup];
         p.position = centers[thisGroup] + dr;
-        p.velocity = dir * glm::vec3(1.0f, 0.0f, 0.0f) * vel_mag + dr;
+        //p.velocity = dir * glm::vec3(1.0f, 0.0f, 0.0f) * vel_mag + dr;
+        p.velocity = 50*dr;
         p.mass = total_mass / NUM_ELEMENTS;
         p.group_id = static_cast<float>(thisGroup);
         if (i == 0) { //% (NUM_ELEMENTS / 2)
@@ -520,9 +522,12 @@ void Buffers::createBuffer_lbvh_points_2sphere()
 void Buffers::createBuffer_lbvh_points_rot_sphere()
 {
     glm::vec3 center(0.5f, 0.5f, 0.5f);
-    float total_mass = 1.f;
-    float mass = total_mass / NUM_ELEMENTS;
-    float blob_r = 0.5f;
+    float total_mass = 3.f;
+    float mass_big_frac = 0.85;
+    float mass_small = (1- mass_big_frac)*total_mass / NUM_ELEMENTS;
+    float mass_big = mass_big_frac * total_mass;
+    float r_min = 0.3f;
+    float r_max = 1.5f;
 
     points_lbvh.reserve(NUM_ELEMENTS);
     std::default_random_engine rndEngine((unsigned)time(nullptr));
@@ -534,30 +539,50 @@ void Buffers::createBuffer_lbvh_points_rot_sphere()
     float omega = 1.f;
     for (size_t i = 0; i < NUM_ELEMENTS; i++)
     {
-        point3D p;
-        float a = rndDist(rndEngine);
-        float b = rndDist(rndEngine);
-        float c = rndDist(rndEngine);
-        glm::vec3 dr = Misc::rollSphereCoords(0.0f, blob_r, glm::vec3(a, b, c));
-        float t = glm::length(dr)/ blob_r;
-        p.color = (1-t) * color1 + t * color2;
-        float d = glm::length(glm::vec2(dr));
-        // mass inside sphere of dr -> NUM_ELEMENTS * mass * (dr/blob_r)^3
-        float M = mass * NUM_ELEMENTS * glm::pow(d / blob_r, 3);
-        float phi = glm::acos(dr.x / d);
-        p.position = center + dr;
-        // v = sqrt(GM/d)
-        p.velocity = 20.f * glm::sqrt(M/d) * glm::vec3(-glm::sin(phi), glm::cos(phi), 0.0f);
-        p.mass = mass;
-        p.group_id = 0.f;
 
-        p.acceleration = glm::vec3(0.0f, 0.0f, 0.0f);
+        point3D p;
+
+        if (i == 0)
+        {
+            p.color = glm::vec4(1.0f);
+            p.position = center;
+            p.velocity = glm::vec3(0.0f);
+            p.mass = mass_big;
+            p.acceleration = glm::vec3(0.0f);
+        }
+        else
+        {
+            float a = rndDist(rndEngine);
+            float b = rndDist(rndEngine);
+            //float c = rndDist(rndEngine);
+            //glm::vec3 dr = Misc::rollSphereCoords(0.45f, r_max, glm::vec3(a, b, c));
+            glm::vec3 dr = Misc::rollDisk3DCoords(r_min, r_max, glm::vec2(a, b));
+
+            float t = glm::length(dr) / r_max;
+            p.color = (1 - t) * color1 + t * color2;
+            float d = glm::length(glm::vec2(dr));
+
+            // mass inside a disk: ~(dr/blobl_r)^2, minus mass of empty ring
+            float M = mass_big + mass_small * NUM_ELEMENTS * ( glm::pow(d / r_max, 2) - glm::pow(r_min / r_max, 2));
+            float phi = glm::atan(dr.y, dr.x);
+            p.position = center + dr;
+            p.velocity = 58.0f * glm::sqrt(M / d) * glm::vec3(-glm::sin(phi), glm::cos(phi), 0.0f);
+            p.mass = mass_small;
+            p.acceleration = -1.0f * M * glm::pow(d, -3) * dr;
+        }
+        
+        p.group_id = 0.f;
         p.bbmin = p.position - glm::vec3(P_R);
         p.bbmax = p.position + glm::vec3(P_R);
         p.damping = 0.0f;
 
         points_lbvh.push_back(p);
         }
+
+    buffer_lbvh_particles.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_lbvh_particles.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMapped_lbvh_particles_host_vis.resize(MAX_FRAMES_IN_FLIGHT);
+
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         createBufferDeviceLocalData(
             sizeof(point3D) * NUM_ELEMENTS,

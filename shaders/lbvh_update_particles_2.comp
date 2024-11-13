@@ -1,7 +1,7 @@
 
 #version 460
 
-#define MAX_ELEMENTS 1024 
+#define MAX_ELEMENTS 3072
 
 struct Particle {
 	vec4 color;
@@ -126,25 +126,29 @@ void main() {
 		level++;
 	}
 
-	g_particles[trueID].acceleration = force / node.mass;
-	g_particles[trueID].velocity += g_particles[trueID].acceleration * deltaTime;
-	g_particles[trueID].position += g_particles[trueID].velocity * deltaTime;
+	//g_particles[trueID].acceleration = force / node.mass;
+	//g_particles[trueID].velocity += g_particles[trueID].acceleration * deltaTime;
+	//g_particles[trueID].position += g_particles[trueID].velocity * deltaTime;
+	
+	g_particles[trueID].position = g_particles_old[trueID].position + g_particles_old[trueID].velocity * deltaTime + 0.5* g_particles_old[trueID].acceleration * deltaTime *deltaTime;
+	
+	g_particles[trueID].velocity = g_particles_old[trueID].velocity + 0.5*(g_particles_old[trueID].acceleration + force / node.mass) * deltaTime;
 	
 	vec3 dr = vec3(0.005);
 	g_particles[trueID].bbmin = g_particles[trueID].position - dr;
 	g_particles[trueID].bbmax = g_particles[trueID].position + dr;
 	
 	
-	float vel_damp = 0.7;
+	float vel_damp = 0.99;
 	vec3 pos = g_particles[trueID].position;
 		
-	if ((pos.x <= -0.5) || (pos.x  >= 1.5)) {
+	if ((pos.x <= -2.5) || (pos.x  >= 3.5)) {
 			g_particles[trueID].velocity.x *= -vel_damp;
 		}
-		if ((pos.y <= -1.5) || (pos.y >= 1.5)) {
+		if ((pos.y <= -2.5) || (pos.y >= 3.5)) {
 			g_particles[trueID].velocity.y *= -vel_damp;
 		}
-		if ((pos.z <= -vel_damp) || (pos.z >= 1.5)) {
+		if ((pos.z <= -2.5) || (pos.z >= 3.5)) {
 			g_particles[trueID].velocity.z *= -vel_damp;
 		}	
 }

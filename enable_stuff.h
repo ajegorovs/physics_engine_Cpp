@@ -6,7 +6,7 @@ const bool ENABLE_POLY = false;
 
 //const float GRAV_CONST = 1.0f;
 
-//const float TIME_SCALE = 0.0005f;
+const float TIME_SCALE = 0.0015f;
 
 //const float MASS_SOLAR = 2e30; // M [kg]
 //const float DIST_PARSEC = 3e16;// R [m]

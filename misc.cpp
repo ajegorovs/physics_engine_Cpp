@@ -63,6 +63,21 @@ unsigned int Misc::morton3D(float x, float y, float z)
     return xx * 4 + yy * 2 + zz;
 }
 
+glm::vec3 Misc::rollDisk3DCoords(float r_min, float r_max, glm::vec2 rolls) {
+
+    float pi = glm::pi<float>();
+    float r_max2 = r_max * r_max;
+    float r_min2 = r_min * r_min;
+    float r = glm::sqrt(rolls[0]*(r_max2 - r_min2) + r_min2);
+    float theta = 2.0f * pi * rolls[1];
+    
+    return glm::vec3(
+        r * glm::cos(theta),
+        r * glm::sin(theta),
+        0.0f
+    );
+}
+
 glm::vec3 Misc::rollSphereCoords(float r_min, float r_max, glm::vec3 rolls) {
 
     float pi = glm::pi<float>();
