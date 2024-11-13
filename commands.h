@@ -7,7 +7,7 @@
 class Commands {
 public:
     VkCommandPool commandPool;
-    VkCommandBuffer commandLBVHComputeBuffer;
+    std::vector<VkCommandBuffer> commandLBVHComputeBuffer;
     std::vector<VkCommandBuffer> commandBuffers;
     std::vector<VkCommandBuffer> computeCommandBuffers;
     

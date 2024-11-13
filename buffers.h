@@ -17,9 +17,9 @@ public:
 	std::vector<Vertex> vertices;
 	std::vector<uint32_t> indices;
 	//std::vector<VertexBase> line_vertices;
-	VkBuffer buffer_lines;
+	std::vector < VkBuffer> buffer_lines;
 
-	std::vector<MortonCodeElement> MC;
+	std::vector < std::vector<MortonCodeElement>> MC;
 
 	std::vector<VkBuffer> buffer_storageTransformations;
 	std::vector<VkBuffer> buffer_uniformMVP;
@@ -28,23 +28,23 @@ public:
 	std::vector<VkBuffer> buffer_physics_attractors;
 	std::vector<VkBuffer> buffer_physics_constants;
 
-	VkBuffer buffer_lbvh_particles;
-	VkBuffer buffer_lbvh_particles_host_vis;
-	VkBuffer buffer_lbvh_mortonCode;
-	VkBuffer buffer_lbvh_mortonCode_host_vis;
-	VkBuffer buffer_lbvh_mortonCode_host_vis2;
-	VkBuffer buffer_lbvh_mortonCodePingPong;
-	VkBuffer buffer_lbvh_LBVH;
-	VkBuffer buffer_lbvh_LBVHConstructionInfo;
-	VkBuffer buffer_lbvh_LBVH_host_vis;
-	VkBuffer buffer_lbvh_global_BBs;
-	VkBuffer buffer_lbvh_global_BBs_host_vis;
+	std::vector<VkBuffer> buffer_lbvh_particles;
+	std::vector<VkBuffer> buffer_lbvh_particles_host_vis;
+	std::vector<VkBuffer> buffer_lbvh_mortonCode;
+	std::vector<VkBuffer> buffer_lbvh_mortonCode_host_vis;
+	std::vector<VkBuffer> buffer_lbvh_mortonCode_host_vis2;
+	std::vector<VkBuffer> buffer_lbvh_mortonCodePingPong;
+	std::vector<VkBuffer> buffer_lbvh_LBVH;
+	std::vector<VkBuffer> buffer_lbvh_LBVHConstructionInfo;
+	std::vector<VkBuffer> buffer_lbvh_LBVH_host_vis;
+	std::vector<VkBuffer> buffer_lbvh_global_BBs;
+	std::vector<VkBuffer> buffer_lbvh_global_BBs_host_vis;
 
-	VkDeviceMemory bufferMemory_lbvh_LBVH_host_vis;
-	VkDeviceMemory bufferMemory_lbvh_particles_host_vis;
-	VkDeviceMemory bufferMemory_lbvh_mortonCode_host_vis;
-	VkDeviceMemory bufferMemory_lbvh_mortonCode_host_vis2;
-	VkDeviceMemory bufferMemory_lbvh_global_BBs_host_vis;
+	std::vector<VkDeviceMemory> bufferMemory_lbvh_LBVH_host_vis;
+	std::vector<VkDeviceMemory> bufferMemory_lbvh_particles_host_vis;
+	std::vector<VkDeviceMemory> bufferMemory_lbvh_mortonCode_host_vis;
+	std::vector<VkDeviceMemory> bufferMemory_lbvh_mortonCode_host_vis2;
+	std::vector<VkDeviceMemory> bufferMemory_lbvh_global_BBs_host_vis;
 
 
 	Buffers();
@@ -128,12 +128,12 @@ public:
 	std::vector<void*> bufferMapped_uniformDeltaTime;
 	std::vector<void*> bufferMapped_physics_attractors;
 
-	void* bufferMapped_lines;
-	void* bufferMapped_lbvh_LBVH_hist_vis;
-	void* bufferMapped_lbvh_particles_host_vis;
-	void* bufferMapped_lbvh_mortonCode_host_vis;
-	void* bufferMapped_lbvh_mortonCode_host_vis2;
-	void* bufferMapped_lbvh_global_BBs_host_vis;
+	std::vector<void*> bufferMapped_lines;
+	std::vector<void*> bufferMapped_lbvh_LBVH_hist_vis;
+	std::vector<void*> bufferMapped_lbvh_particles_host_vis;
+	std::vector<void*> bufferMapped_lbvh_mortonCode_host_vis;
+	std::vector<void*> bufferMapped_lbvh_mortonCode_host_vis2;
+	std::vector<void*> bufferMapped_lbvh_global_BBs_host_vis;
 
 	VkBuffer vertexBuffer;
 	VkBuffer indexBuffer;
@@ -150,16 +150,16 @@ private:
 	std::vector<VkDeviceMemory> bufferMemory_physics_constants;
 	std::vector<VkDeviceMemory> bufferMemory_physics_attractors;
 
-	VkDeviceMemory bufferMemory_lbvh_particles;
-	VkDeviceMemory bufferMemory_lbvh_mortonCode;
-	VkDeviceMemory bufferMemory_lbvh_mortonCodePingPong;
-	VkDeviceMemory bufferMemory_lbvh_LBVH;
-	VkDeviceMemory bufferMemory_lbvh_LBVHConstructionInfo;
-	VkDeviceMemory bufferMemory_lbvh_global_BBs;
+	std::vector<VkDeviceMemory> bufferMemory_lbvh_particles;
+	std::vector<VkDeviceMemory> bufferMemory_lbvh_mortonCode;
+	std::vector<VkDeviceMemory> bufferMemory_lbvh_mortonCodePingPong;
+	std::vector<VkDeviceMemory> bufferMemory_lbvh_LBVH;
+	std::vector<VkDeviceMemory> bufferMemory_lbvh_LBVHConstructionInfo;
+	std::vector<VkDeviceMemory> bufferMemory_lbvh_global_BBs;
 
 	VkDeviceMemory vertexBufferMemory;
 	VkDeviceMemory indexBufferMemory;
-	VkDeviceMemory bufferMemory_lines;
+	std::vector < VkDeviceMemory> bufferMemory_lines;
 
 	std::vector<point3D> points_lbvh;
 	std::array<glm::vec3,2> lbvh_BB;

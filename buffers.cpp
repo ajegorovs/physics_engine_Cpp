@@ -296,13 +296,20 @@ void Buffers::createVertexBuffer() {
 }
 
 void Buffers::createBuffer_line()
-{                                          
-    createBuffer(lineVertSize, 
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        buffer_lines, bufferMemory_lines);
+{                 
+    buffer_lines.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_lines.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMapped_lines.resize(MAX_FRAMES_IN_FLIGHT);
 
-    vkMapMemory(*pDevice, bufferMemory_lines, 0, lineVertSize, 0, &bufferMapped_lines);
+    for (size_t i = 0; i < buffer_uniformDeltaTime.size(); i++) {
+        createBuffer(lineVertSize,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            buffer_lines[i], 
+            bufferMemory_lines[i]);
+
+        vkMapMemory(*pDevice, bufferMemory_lines[i], 0, lineVertSize, 0, &bufferMapped_lines[i]);
+    }
 }
 
 void Buffers::createIndexBuffer() {
@@ -424,14 +431,15 @@ void Buffers::createBuffer_lbvh_points(std::vector<glm::vec3> points, glm::vec3 
         point3D v{glm::vec4(color2,1.0f), p, orbital_vel, accel, bbmin, bbmax, mass, 1.0f, 0.0f};
         particles.push_back(v);
     }
-
-    createBufferDeviceLocalData(
-        sizeof(point3D) * NUM_ELEMENTS,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT|VK_BUFFER_USAGE_VERTEX_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        buffer_lbvh_particles,
-        bufferMemory_lbvh_particles,
-        static_cast<const void*>(particles.data())
-    );
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBufferDeviceLocalData(
+            sizeof(point3D) * NUM_ELEMENTS,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            buffer_lbvh_particles[i],
+            bufferMemory_lbvh_particles[i],
+            static_cast<const void*>(particles.data())
+        );
+    }
 }
 
 
@@ -464,7 +472,6 @@ void Buffers::createBuffer_lbvh_points_2sphere()
         uint32_t thatID = (thisGroup) ? 1 : 0;
         int dir = (thisGroup) ? 1 : -1;
 
-
         float a = rndDist(rndEngine);
         float b = rndDist(rndEngine);
         float c = rndDist(rndEngine);
@@ -493,15 +500,21 @@ void Buffers::createBuffer_lbvh_points_2sphere()
         points_lbvh.push_back(p);
     }
 
-    createBufferDeviceLocalData(
-        sizeof(point3D) * NUM_ELEMENTS,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        buffer_lbvh_particles,
-        bufferMemory_lbvh_particles,
-        static_cast<const void*>(points_lbvh.data())
-    );
+    buffer_lbvh_particles.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_lbvh_particles.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMapped_lbvh_particles_host_vis.resize(MAX_FRAMES_IN_FLIGHT);
 
-    std::memcpy(bufferMapped_lbvh_particles_host_vis, points_lbvh.data(), sizeof(point3D) * NUM_ELEMENTS);
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBufferDeviceLocalData(
+            sizeof(point3D) * NUM_ELEMENTS,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            buffer_lbvh_particles[i],
+            bufferMemory_lbvh_particles[i],
+            static_cast<const void*>(points_lbvh.data())
+        );
+
+        std::memcpy(bufferMapped_lbvh_particles_host_vis[i], points_lbvh.data(), sizeof(point3D) * NUM_ELEMENTS);
+    }
 }
 
 void Buffers::createBuffer_lbvh_points_rot_sphere()
@@ -545,16 +558,17 @@ void Buffers::createBuffer_lbvh_points_rot_sphere()
 
         points_lbvh.push_back(p);
         }
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBufferDeviceLocalData(
+            sizeof(point3D) * NUM_ELEMENTS,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            buffer_lbvh_particles[i],
+            bufferMemory_lbvh_particles[i],
+            static_cast<const void*>(points_lbvh.data())
+        );
 
-    createBufferDeviceLocalData(
-        sizeof(point3D) * NUM_ELEMENTS,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        buffer_lbvh_particles,
-        bufferMemory_lbvh_particles,
-        static_cast<const void*>(points_lbvh.data())
-    );
-
-    std::memcpy(bufferMapped_lbvh_particles_host_vis, points_lbvh.data(), sizeof(point3D) * NUM_ELEMENTS);
+        std::memcpy(bufferMapped_lbvh_particles_host_vis[i], points_lbvh.data(), sizeof(point3D) * NUM_ELEMENTS);
+    }
 
     /*createBufferDeviceLocalData(
         sizeof(point3D) * NUM_ELEMENTS,
@@ -572,97 +586,142 @@ void Buffers::createBuffer_lbvh_points_rot_sphere()
 void Buffers::createBuffer_lbvh_points_host_vis()
 {
     VkDeviceSize size = sizeof(point3D) * NUM_ELEMENTS;
-    createBuffer(
-        size,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        buffer_lbvh_particles_host_vis,
-        bufferMemory_lbvh_particles_host_vis);
+    buffer_lbvh_particles_host_vis.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_lbvh_particles_host_vis.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMapped_lbvh_particles_host_vis.resize(MAX_FRAMES_IN_FLIGHT);
 
-    vkMapMemory(*pDevice, bufferMemory_lbvh_particles_host_vis, 0,
-        size, 0, &bufferMapped_lbvh_particles_host_vis);
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBuffer(
+            size,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            buffer_lbvh_particles_host_vis[i],
+            bufferMemory_lbvh_particles_host_vis[i]);
+
+        vkMapMemory(*pDevice, bufferMemory_lbvh_particles_host_vis[i], 0,
+            size, 0, &bufferMapped_lbvh_particles_host_vis[i]);
+    }
 }
 
 void Buffers::createBuffer_lbvh_mortonCode()
 {
+    buffer_lbvh_mortonCode.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_lbvh_mortonCode.resize(MAX_FRAMES_IN_FLIGHT);
 
-    createBufferDeviceLocalData(
-        sizeof(MortonCodeElement) * NUM_ELEMENTS,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        buffer_lbvh_mortonCode,
-        bufferMemory_lbvh_mortonCode
-    );
-
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBufferDeviceLocalData(
+            sizeof(MortonCodeElement) * NUM_ELEMENTS,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            buffer_lbvh_mortonCode[i],
+            bufferMemory_lbvh_mortonCode[i]
+        );
+    }
 }
 
 void Buffers::createBuffer_lbvh_mortonCode_host_vis()
 {
     VkDeviceSize size = sizeof(MortonCodeElement) * NUM_ELEMENTS;
-    createBuffer(
-        size,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        buffer_lbvh_mortonCode_host_vis,
-        bufferMemory_lbvh_mortonCode_host_vis);
 
-    vkMapMemory(*pDevice, bufferMemory_lbvh_mortonCode_host_vis, 0,
-        size, 0, &bufferMapped_lbvh_mortonCode_host_vis);
+    buffer_lbvh_mortonCode_host_vis.resize(MAX_FRAMES_IN_FLIGHT);
+    buffer_lbvh_mortonCode_host_vis2.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_lbvh_mortonCode_host_vis.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_lbvh_mortonCode_host_vis2.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMapped_lbvh_mortonCode_host_vis.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMapped_lbvh_mortonCode_host_vis2.resize(MAX_FRAMES_IN_FLIGHT);
 
-    createBuffer(
-        size,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        buffer_lbvh_mortonCode_host_vis2,
-        bufferMemory_lbvh_mortonCode_host_vis2);
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBuffer(
+            size,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            buffer_lbvh_mortonCode_host_vis[i],
+            bufferMemory_lbvh_mortonCode_host_vis[i]);
 
-    vkMapMemory(*pDevice, bufferMemory_lbvh_mortonCode_host_vis2, 0,
-        size, 0, &bufferMapped_lbvh_mortonCode_host_vis2);
+        vkMapMemory(*pDevice, bufferMemory_lbvh_mortonCode_host_vis[i], 0,
+            size, 0, &bufferMapped_lbvh_mortonCode_host_vis[i]);
+
+        createBuffer(
+            size,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            buffer_lbvh_mortonCode_host_vis2[i],
+            bufferMemory_lbvh_mortonCode_host_vis2[i]);
+
+        vkMapMemory(*pDevice, bufferMemory_lbvh_mortonCode_host_vis2[i], 0,
+            size, 0, &bufferMapped_lbvh_mortonCode_host_vis2[i]);
+    }
 }
 
 void Buffers::createBuffer_lbvh_mortonCodePingPong()
 {
-    createBufferDeviceLocalData(
-        sizeof(MortonCodeElement) * NUM_ELEMENTS,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        buffer_lbvh_mortonCodePingPong,
-        bufferMemory_lbvh_mortonCodePingPong
-    );
+    
+    buffer_lbvh_mortonCodePingPong.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_lbvh_mortonCodePingPong.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBufferDeviceLocalData(
+            sizeof(MortonCodeElement) * NUM_ELEMENTS,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            buffer_lbvh_mortonCodePingPong[i],
+            bufferMemory_lbvh_mortonCodePingPong[i]
+        );
+    }
 }
 
 void Buffers::createBuffer_lbvh_LBVH()
 {
-    MC.resize(NUM_ELEMENTS);
+    MC.resize(MAX_FRAMES_IN_FLIGHT);
+    
+    buffer_lbvh_LBVH.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_lbvh_LBVH.resize(MAX_FRAMES_IN_FLIGHT);
 
-    createBufferDeviceLocalData(
-        sizeof(LBVHNode) * NUM_LBVH_ELEMENTS,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        buffer_lbvh_LBVH,
-        bufferMemory_lbvh_LBVH
-    );
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+
+        MC[i].resize(NUM_ELEMENTS); // for something else
+
+        createBufferDeviceLocalData(
+            sizeof(LBVHNode) * NUM_LBVH_ELEMENTS,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            buffer_lbvh_LBVH[i],
+            bufferMemory_lbvh_LBVH[i]
+        );
+    }
 }
 
 void Buffers::createBuffer_lbvh_LBVH_hist_vis()
 {
     VkDeviceSize size = sizeof(LBVHNode) * NUM_LBVH_ELEMENTS;
-    createBuffer(
-        size,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_DST_BIT| VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        buffer_lbvh_LBVH_host_vis,
-        bufferMemory_lbvh_LBVH_host_vis);
 
-    vkMapMemory(*pDevice, bufferMemory_lbvh_LBVH_host_vis, 0, 
-        size, 0, &bufferMapped_lbvh_LBVH_hist_vis);
+    buffer_lbvh_LBVH_host_vis.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_lbvh_LBVH_host_vis.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMapped_lbvh_LBVH_hist_vis.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBuffer(
+            size,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            buffer_lbvh_LBVH_host_vis[i],
+            bufferMemory_lbvh_LBVH_host_vis[i]);
+
+        vkMapMemory(*pDevice, bufferMemory_lbvh_LBVH_host_vis[i], 0,
+            size, 0, &bufferMapped_lbvh_LBVH_hist_vis[i]);
+    }
 }
 
 void Buffers::createBuffer_lbvh_LBVHConstructionInfo()
 {
-    createBufferDeviceLocalData(
-        sizeof(LBVHConstructionInfo) * NUM_LBVH_ELEMENTS,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        buffer_lbvh_LBVHConstructionInfo,
-        bufferMemory_lbvh_LBVHConstructionInfo
-    );
+    buffer_lbvh_LBVHConstructionInfo.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_lbvh_LBVHConstructionInfo.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBufferDeviceLocalData(
+            sizeof(LBVHConstructionInfo) * NUM_LBVH_ELEMENTS,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            buffer_lbvh_LBVHConstructionInfo[i],
+            bufferMemory_lbvh_LBVHConstructionInfo[i]
+        );
+    }
 
 }
 
@@ -671,29 +730,39 @@ void Buffers::createBuffer_lbvh_global_BBs()
     glm::vec3 min = lbvh_BB[0];
     glm::vec3 max = lbvh_BB[1];
     GlobalBoundingBox BB{ min.x, min.y, min.z, max.x, max.y, max.z };
+
     VkDeviceSize size = sizeof(GlobalBoundingBox);
 
-    // on host. must be transfer src once (here) and then only dst.
-    createBuffer(
-        size,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        buffer_lbvh_global_BBs_host_vis,
-        bufferMemory_lbvh_global_BBs_host_vis
-    );
+    buffer_lbvh_global_BBs_host_vis.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_lbvh_global_BBs_host_vis.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMapped_lbvh_global_BBs_host_vis.resize(MAX_FRAMES_IN_FLIGHT);
+    buffer_lbvh_global_BBs.resize(MAX_FRAMES_IN_FLIGHT);
+    bufferMemory_lbvh_global_BBs.resize(MAX_FRAMES_IN_FLIGHT);
 
-    vkMapMemory(*pDevice, bufferMemory_lbvh_global_BBs_host_vis, 0,
-        size, 0, &bufferMapped_lbvh_global_BBs_host_vis);
-    memcpy(bufferMapped_lbvh_global_BBs_host_vis, &BB, (size_t)size);
-    // device must be transfter dst once (here) and then only src.
-    createBuffer(
-        size,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        buffer_lbvh_global_BBs,
-        bufferMemory_lbvh_global_BBs);
 
-    copyBuffer(buffer_lbvh_global_BBs_host_vis, buffer_lbvh_global_BBs, size);
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        // on host. must be transfer src once (here) and then only dst.
+        createBuffer(
+            size,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            buffer_lbvh_global_BBs_host_vis[i],
+            bufferMemory_lbvh_global_BBs_host_vis[i]
+        );
+
+        vkMapMemory(*pDevice, bufferMemory_lbvh_global_BBs_host_vis[i], 0,
+            size, 0, &bufferMapped_lbvh_global_BBs_host_vis[i]);
+        memcpy(bufferMapped_lbvh_global_BBs_host_vis[i], &BB, (size_t)size);
+        // device must be transfter dst once (here) and then only src.
+        createBuffer(
+            size,
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            buffer_lbvh_global_BBs[i],
+            bufferMemory_lbvh_global_BBs[i]);
+
+        copyBuffer(buffer_lbvh_global_BBs_host_vis[i], buffer_lbvh_global_BBs[i], size);
+    }
 
 }
 
@@ -841,28 +910,33 @@ void Buffers::clearBuffers1(){
         vkFreeMemory(*pDevice, bufferMemory_physics_constants[i], nullptr);
         vkFreeMemory(*pDevice, bufferMemory_physics_attractors[i], nullptr);
     }
-    
-    vkDestroyBuffer(*pDevice, buffer_lbvh_particles, nullptr);
-    vkDestroyBuffer(*pDevice, buffer_lbvh_mortonCode, nullptr);
-    vkDestroyBuffer(*pDevice, buffer_lbvh_mortonCodePingPong, nullptr);
-    vkDestroyBuffer(*pDevice, buffer_lbvh_LBVH, nullptr);
-    vkDestroyBuffer(*pDevice, buffer_lbvh_LBVHConstructionInfo, nullptr);
-    vkDestroyBuffer(*pDevice, buffer_lbvh_LBVH_host_vis, nullptr);
+    for (size_t i = 0; i < buffer_lbvh_mortonCode.size(); i++) {
+        vkDestroyBuffer(*pDevice, buffer_lbvh_particles[i], nullptr);
+        vkDestroyBuffer(*pDevice, buffer_lbvh_mortonCode[i], nullptr);
+        vkDestroyBuffer(*pDevice, buffer_lbvh_mortonCodePingPong[i], nullptr);
+        vkDestroyBuffer(*pDevice, buffer_lbvh_LBVH[i], nullptr);
+        vkDestroyBuffer(*pDevice, buffer_lbvh_LBVHConstructionInfo[i], nullptr);
+        vkDestroyBuffer(*pDevice, buffer_lbvh_LBVH_host_vis[i], nullptr);
 
-    vkFreeMemory(*pDevice, bufferMemory_lbvh_particles, nullptr);
-    vkFreeMemory(*pDevice, bufferMemory_lbvh_mortonCode, nullptr);
-    vkFreeMemory(*pDevice, bufferMemory_lbvh_mortonCodePingPong, nullptr);
-    vkFreeMemory(*pDevice, bufferMemory_lbvh_LBVH, nullptr);
-    vkFreeMemory(*pDevice, bufferMemory_lbvh_LBVHConstructionInfo, nullptr);
-    vkFreeMemory(*pDevice, bufferMemory_lbvh_LBVH_host_vis, nullptr);
+        vkFreeMemory(*pDevice, bufferMemory_lbvh_particles[i], nullptr);
+        vkFreeMemory(*pDevice, bufferMemory_lbvh_mortonCode[i], nullptr);
+        vkFreeMemory(*pDevice, bufferMemory_lbvh_mortonCodePingPong[i], nullptr);
+        vkFreeMemory(*pDevice, bufferMemory_lbvh_LBVH[i], nullptr);
+        vkFreeMemory(*pDevice, bufferMemory_lbvh_LBVHConstructionInfo[i], nullptr);
+        vkFreeMemory(*pDevice, bufferMemory_lbvh_LBVH_host_vis[i], nullptr);
+    }
 }
 
 void Buffers::clearBuffers2(){
     vkDestroyBuffer(*pDevice, indexBuffer, nullptr);
     vkDestroyBuffer(*pDevice, vertexBuffer, nullptr);
-    vkDestroyBuffer(*pDevice, buffer_lines, nullptr);
     vkFreeMemory(   *pDevice, indexBufferMemory, nullptr);
     vkFreeMemory(   *pDevice, vertexBufferMemory, nullptr);
-    vkFreeMemory(   *pDevice, bufferMemory_lines, nullptr);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkDestroyBuffer(*pDevice, buffer_lines[i], nullptr);
+        vkFreeMemory(*pDevice, bufferMemory_lines[i], nullptr);
+
+    }
 }
 

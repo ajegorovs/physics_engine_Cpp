@@ -257,8 +257,7 @@ void Descriptors::createDS_physics_compute( // to descriptorSets_1UC_4SC
 
 
 void Descriptors::updateDescriptorSets(
-    uint32_t idx, 
-    std::vector<VkDescriptorSet> descriptorSets, 
+    VkDescriptorSet descriptorSet,
     std::vector<VkDescriptorBufferInfo> descriptorBufferInfos,
     std::vector<VkDescriptorType> descriptorTypes
     )
@@ -269,78 +268,86 @@ void Descriptors::updateDescriptorSets(
     for (uint32_t i = 0; i < num_bindings; i++)
     {
         descriptorWrites[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[i].dstSet = descriptorSets[idx];
+        descriptorWrites[i].dstSet = descriptorSet;
         descriptorWrites[i].dstBinding = i;
         descriptorWrites[i].dstArrayElement = 0;
         descriptorWrites[i].descriptorType = descriptorTypes[i];
         descriptorWrites[i].descriptorCount = 1;
         descriptorWrites[i].pBufferInfo = &descriptorBufferInfos[i];
+        std::cout << "\tBinding: "<< i << ", Type : "<< descriptorTypes[i] << std::endl;
     }
     vkUpdateDescriptorSets(*pDevice, num_bindings, descriptorWrites.data(), 0, nullptr);
 }
 
 void Descriptors::createDS_lbvh(
-    VkBuffer& bufferMortonCode,
-    VkBuffer& bufferMortonCodePingPong,
-    VkBuffer& bufferLBVH,
-    VkBuffer& bufferLBVHConstructionInfo,
-    VkBuffer& bufferLBVHParticles,
-    VkBuffer& bufferGlobalBB
+    std::vector<VkBuffer>& bufferMortonCode,
+    std::vector<VkBuffer>& bufferMortonCodePingPong,
+    std::vector<VkBuffer>& bufferLBVH,
+    std::vector<VkBuffer>& bufferLBVHConstructionInfo,
+    std::vector<VkBuffer>& bufferLBVHParticles,
+    std::vector<VkBuffer>& bufferGlobalBB
 )
 {
     uint32_t num_sets = static_cast<uint32_t>(descriptorSetLayout_lbvh.size());
+
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = descriptorPool;
     allocInfo.descriptorSetCount = num_sets;
     allocInfo.pSetLayouts = descriptorSetLayout_lbvh.data();
 
-    descriptorSets_lbvh.resize(num_sets);
-    VkResult result = vkAllocateDescriptorSets(*pDevice, &allocInfo, descriptorSets_lbvh.data());
-    if (result != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate descriptor sets!");
+    descriptorSets_lbvh.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        std::cout << "Preparing descriptor set for frame-in-flight #" << i << " :" << std::endl;
+        descriptorSets_lbvh[i].resize(num_sets);
+
+        VkResult result = vkAllocateDescriptorSets(*pDevice, &allocInfo, descriptorSets_lbvh[i].data());
+        if (result != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate descriptor sets!");
+        }
+
+        VkDescriptorBufferInfo bufferMortonCode_info{ bufferMortonCode[i] , 0, sizeof(MortonCodeElement) * NUM_ELEMENTS};
+
+        VkDescriptorBufferInfo bufferMortonCodePingPong_info{ bufferMortonCodePingPong[i] , 0, sizeof(MortonCodeElement) * NUM_ELEMENTS };
+
+        VkDescriptorBufferInfo bufferLBVH_info{ bufferLBVH[i] , 0, sizeof(LBVHNode) * NUM_LBVH_ELEMENTS };
+
+        VkDescriptorBufferInfo LBVHConstructionInfo_info{ bufferLBVHConstructionInfo[i] , 0, sizeof(LBVHConstructionInfo) * NUM_LBVH_ELEMENTS };
+
+        VkDescriptorBufferInfo bufferParticleInfo_old{ bufferLBVHParticles[(i - 1) % MAX_FRAMES_IN_FLIGHT] , 0, sizeof(point3D) * NUM_ELEMENTS };
+
+        VkDescriptorBufferInfo bufferParticleInfo{ bufferLBVHParticles[i] , 0, sizeof(point3D) * NUM_ELEMENTS };
+
+        VkDescriptorBufferInfo bufferGlobalBBInfo{ bufferGlobalBB[i] , 0, sizeof(GlobalBoundingBox) };
+
+        // Bindings in order of entries.
+        std::vector<std::vector<VkDescriptorBufferInfo>> descriptorBufferInfos = { // change DSL binding counts!
+            {bufferMortonCode_info  , bufferParticleInfo, bufferGlobalBBInfo},                                 //   0-morton code MC
+            {bufferMortonCode_info  , bufferMortonCodePingPong_info},                                          //   1-radix sort of MC
+            {bufferMortonCode_info  , bufferParticleInfo       , bufferLBVH_info, LBVHConstructionInfo_info},  //   2-hierarchy
+            {bufferLBVH_info        , LBVHConstructionInfo_info},                                              //   3-update tree
+            {bufferParticleInfo     , bufferParticleInfo_old, bufferLBVH_info},                                //   4-update forces
+            {bufferParticleInfo     , bufferGlobalBBInfo}                                                      //   5-update BBs
+        }; // { 3,2,4,2,3,2 }; 
+
+        // all descriptor types will be storages
+        size_t size;
+        std::vector<VkDescriptorType> descriptorTypes;
+        for (uint32_t k = 0; k < num_sets; k++)
+        {
+            std::cout << "Set: " << k << std::endl;
+            size = descriptorBufferInfos[k].size();
+            descriptorTypes = std::vector<VkDescriptorType>(size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+
+            updateDescriptorSets(
+                descriptorSets_lbvh[i][k],
+                descriptorBufferInfos[k],
+                descriptorTypes
+            );
+        }
+
     }
-
-    VkDescriptorBufferInfo bufferMortonCode_info{ bufferMortonCode , 0, sizeof(MortonCodeElement) * NUM_ELEMENTS };
-
-    VkDescriptorBufferInfo bufferMortonCodePingPong_info{ bufferMortonCodePingPong , 0, sizeof(MortonCodeElement) * NUM_ELEMENTS };
-
-    VkDescriptorBufferInfo bufferLBVH_info{ bufferLBVH , 0, sizeof(LBVHNode) * NUM_LBVH_ELEMENTS };
-
-    VkDescriptorBufferInfo LBVHConstructionInfo_info{ bufferLBVHConstructionInfo , 0, sizeof(LBVHConstructionInfo) * NUM_LBVH_ELEMENTS };
-
-    VkDescriptorBufferInfo bufferParticleInfo{ bufferLBVHParticles , 0, sizeof(point3D) * NUM_ELEMENTS };
-
-    VkDescriptorBufferInfo bufferGlobalBBInfo{ bufferGlobalBB , 0, sizeof(GlobalBoundingBox)};
-
-    // sets: 0- to Morton code, 1- sort code, 2-construct tree, 3-calc BBs, 
-    // 4- update particles.
-    // Bindings in order of entries.
-    std::vector<std::vector<VkDescriptorBufferInfo>> descriptorBufferInfos = { // change DSL binding counts!
-        {bufferMortonCode_info  , bufferParticleInfo, bufferGlobalBBInfo},
-        {bufferMortonCode_info  , bufferMortonCodePingPong_info},
-        {bufferMortonCode_info  , bufferParticleInfo       , bufferLBVH_info, LBVHConstructionInfo_info},
-        {bufferLBVH_info        , LBVHConstructionInfo_info},
-        {bufferParticleInfo     , bufferLBVH_info, bufferGlobalBBInfo},
-        {bufferParticleInfo     , bufferGlobalBBInfo}
-    };
-
-    // all descriptor types will be storages
-    size_t size;
-    std::vector<VkDescriptorType> descriptorTypes;
-    for (uint32_t i= 0; i < num_sets; i++)
-    {
-        size = descriptorBufferInfos[i].size();
-        descriptorTypes = std::vector<VkDescriptorType>(size, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-
-        updateDescriptorSets(
-            i,
-            descriptorSets_lbvh,
-            descriptorBufferInfos[i],
-            descriptorTypes
-        );
-    }
- 
 }
 
 void Descriptors::createDSL_multi_MPV_TS_TRN()
@@ -471,8 +478,9 @@ void Descriptors::createDescriptorSetLayout(
         binding.stageFlags = shaderStageFlagBits[i];
 
         descriptorSetLayoutBindings.push_back(binding);
-    }
 
+        std::cout << "\tBinding: " << i << ", Type: " << descriptorTypes[i] << std::endl;
+    }
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layoutInfo.bindingCount = num_bindings;
@@ -484,6 +492,7 @@ void Descriptors::createDescriptorSetLayout(
 }
 void Descriptors::createDSL_lbvh()
 {
+    std::cout << "Preparing descriptor set layout:" << std::endl;
     // All sets and bindings are of type storage buffer and are used by compute stage;
     std::vector<uint32_t> bindings_per_set = { 3,2,4,2,3,2 }; 
 
@@ -496,6 +505,7 @@ void Descriptors::createDSL_lbvh()
 
     for (uint32_t i = 0; i < num_sets; i++)
     {
+        std::cout << "Set: " << i << std::endl;
         descriptorTypes = std::vector<VkDescriptorType>(            bindings_per_set[i], VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
         shaderStageFlagBits = std::vector<VkShaderStageFlagBits>(   bindings_per_set[i], VK_SHADER_STAGE_COMPUTE_BIT);
 

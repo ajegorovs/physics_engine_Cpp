@@ -60,7 +60,6 @@ private:
 	void drawFrame();
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 	void recordComputeCommandBuffer(VkCommandBuffer commandBuffer);
-	void recordLBVHComputeCommandBuffer(VkCommandBuffer commandBuffer, bool recalculate);
 	void recordLBVH_particle_bb_update(VkCommandBuffer commandBuffer);
 	void doLBVH_MC_RADIX();
 	bool redoLBVH_RADIX();

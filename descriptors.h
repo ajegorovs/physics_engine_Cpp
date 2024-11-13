@@ -22,8 +22,7 @@ public:
 		VkDescriptorSetLayout* pDescriptorSetLayout
 	);
 	void updateDescriptorSets(
-		uint32_t idx,
-		std::vector<VkDescriptorSet> descriptorSets,
+		VkDescriptorSet descriptorSet,
 		std::vector<VkDescriptorBufferInfo> descriptorBufferInfos,
 		std::vector<VkDescriptorType> descriptorTypes
 	);
@@ -45,12 +44,12 @@ public:
 	);
 
 	void createDS_lbvh(
-		VkBuffer& bufferMortonCode,
-		VkBuffer& bufferMortonCodePingPong,
-		VkBuffer& bufferLBVH,
-		VkBuffer& bufferLBVHConstructionInfo,
-		VkBuffer& bufferLBVHParticles,
-		VkBuffer& bufferGlobalBB
+		std::vector<VkBuffer>& bufferMortonCode,
+		std::vector<VkBuffer>& bufferMortonCodePingPong,
+		std::vector<VkBuffer>& bufferLBVH,
+		std::vector<VkBuffer>& bufferLBVHConstructionInfo,
+		std::vector<VkBuffer>& bufferLBVHParticles,
+		std::vector<VkBuffer>& bufferGlobalBB
 	);
 	
 	void cleanupDSL();
@@ -62,13 +61,11 @@ public:
 	VkDescriptorSetLayout descriptorSetLayout_uniformMVP;
 	VkDescriptorSetLayout descriptorSetLayout_1UC_4SC;
 	std::vector<VkDescriptorSetLayout> descriptorSetLayout_lbvh;
-	std::vector <VkDescriptorSetLayout> descriptorSetLayout_lbvh_transform;
 
 	std::vector<VkDescriptorSet> descriptorSets_multi_MPV_TS_TRN;
 	std::vector<VkDescriptorSet> descriptorSets_uniformMVP;
 	std::vector<VkDescriptorSet> descriptorSets_1UC_4SC;
-	std::vector<VkDescriptorSet> descriptorSets_lbvh;
-	VkDescriptorSet descriptorSets_lbvh_transform;
+	std::vector < std::vector<VkDescriptorSet>> descriptorSets_lbvh;
 
 private:
 	VkDevice* pDevice;

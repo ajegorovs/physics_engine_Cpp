@@ -10,12 +10,11 @@ public:
 	std::vector<VkSemaphore> imageAvailableSemaphores;
 	std::vector<VkSemaphore> renderFinishedSemaphores;
 	std::vector<VkSemaphore> computeFinishedSemaphores;
-	VkSemaphore	lbvhComputeSemaphore;
-	VkSemaphore	lbvhComputeSemaphore2;
+	std::vector<VkSemaphore>	lbvhComputeSemaphore;
 
 	std::vector<VkFence> inFlightFences;
 	std::vector<VkFence> computeInFlightFences;
-	VkFence lbvhComputeFence;
+	std::vector<VkFence> lbvhComputeFence;
 
 	Sync();
 	Sync(VkDevice* pDevice);

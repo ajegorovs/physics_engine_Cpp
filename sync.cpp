@@ -58,9 +58,11 @@ void Sync::createSyncObjects() {
     imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
     renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
     computeFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    lbvhComputeSemaphore.resize(MAX_FRAMES_IN_FLIGHT);
 
     inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
     computeInFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+    lbvhComputeFence.resize(MAX_FRAMES_IN_FLIGHT);
 
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -79,12 +81,13 @@ void Sync::createSyncObjects() {
             vkCreateFence(*pDevice, &fenceInfo, nullptr, &computeInFlightFences[i]) != VK_SUCCESS) {
             throw std::runtime_error("failed to create compute synchronization objects for a frame!");
         }
+
+        if (vkCreateSemaphore(*pDevice, &semaphoreInfo, nullptr, &lbvhComputeSemaphore[i]) != VK_SUCCESS ||
+            vkCreateFence(*pDevice, &fenceInfo, nullptr, &lbvhComputeFence[i]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create lbvhComputeSemaphore compute synchronization object!");
+        }
     }
-    if (vkCreateSemaphore(*pDevice, &semaphoreInfo, nullptr, &lbvhComputeSemaphore) != VK_SUCCESS ||
-        vkCreateSemaphore(*pDevice, &semaphoreInfo, nullptr, &lbvhComputeSemaphore2) != VK_SUCCESS ||
-        vkCreateFence(*pDevice, &fenceInfo, nullptr, &lbvhComputeFence) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create lbvhComputeSemaphore compute synchronization object!");
-    }
+    
 }
 
 void Sync::cleanup() {
@@ -94,8 +97,8 @@ void Sync::cleanup() {
         vkDestroySemaphore( *pDevice, computeFinishedSemaphores[i], nullptr);
         vkDestroyFence(     *pDevice, inFlightFences[i], nullptr);
         vkDestroyFence(     *pDevice, computeInFlightFences[i], nullptr);
+        vkDestroySemaphore(*pDevice, lbvhComputeSemaphore[i], nullptr);
+        vkDestroyFence(*pDevice, lbvhComputeFence[i], nullptr);
     }
-    vkDestroySemaphore(*pDevice, lbvhComputeSemaphore, nullptr);
-    vkDestroySemaphore(*pDevice, lbvhComputeSemaphore2, nullptr);
-    vkDestroyFence(*pDevice, lbvhComputeFence, nullptr);
+    
 }

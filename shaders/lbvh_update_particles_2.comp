@@ -50,7 +50,11 @@ layout (std430, set = 4, binding = 0) buffer particles {
     Particle g_particles[];
 };
 
-layout (std430, set = 4, binding = 1) readonly buffer lbvh {
+layout (std430, set = 4, binding = 1) readonly buffer particles_old {
+    Particle g_particles_old[];
+};
+
+layout (std430, set = 4, binding = 2) readonly buffer lbvh {
     LBVHNode nodes[];
 };
 
