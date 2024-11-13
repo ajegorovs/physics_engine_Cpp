@@ -31,9 +31,7 @@ public:
 	double lastFrameTime = 0.0f;
 	double lastTime = 0.0f;
 	bool recalculateLBVH;
-	bool recalculateBBs;
 	uint32_t cnt;
-	PushConstantsMortonCodes pushConstMC{ NUM_ELEMENTS, -10.0f*P_R , -10.0f * P_R, -10.0f * P_R , 1.0f + 10.0f * P_R , 1.0f + 10.0f * P_R , 1.0f + 10.0f * P_R };
 
 	
 private:
@@ -63,7 +61,7 @@ private:
 	void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 	void recordComputeCommandBuffer(VkCommandBuffer commandBuffer);
 	void recordLBVHComputeCommandBuffer(VkCommandBuffer commandBuffer, bool recalculate);
-	void recordLBVHComputeCommandBuffer2(VkCommandBuffer commandBuffer, bool recalculate);
+	void recordLBVH_particle_bb_update(VkCommandBuffer commandBuffer);
 	void doLBVH_MC_RADIX();
 	bool redoLBVH_RADIX();
 	void doLBVH_Hierarchy();

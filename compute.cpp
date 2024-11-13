@@ -103,14 +103,14 @@ void Compute::createComputePipeline_lbvh(
         &computeP_lbvh_morton_codes,
         &computePL_lbvh_morton_codes,
         descriptorSetLayouts,
-        sizeof(PushConstantsMortonCodes),
+        sizeof(StructLBVH_NUM_ELEMENTS),
         "shaders/lbvh_morton_codes.spv");
 
     createComputePipeline(
         &computeP_lbvh_single_radixsort,
         &computePL_lbvh_single_radixsort,
         descriptorSetLayouts,
-        sizeof(PushConstantsRadixSort),
+        sizeof(StructLBVH_NUM_ELEMENTS),
         "shaders/lbvh_single_radixsort.spv");
 
     createComputePipeline(
@@ -128,13 +128,6 @@ void Compute::createComputePipeline_lbvh(
         "shaders/lbvh_bounding_boxes.spv");
 
     createComputePipeline(
-        &computeP_lbvh_particles_update,
-        &computePL_lbvh_particles_update,
-        descriptorSetLayouts,
-        sizeof(StructDeltaTimeLBVH),
-        "shaders/lbvh_update_particles.spv");
-
-    createComputePipeline(
         &computeP_lbvh_particles_update2,
         &computePL_lbvh_particles_update2,
         descriptorSetLayouts,
@@ -146,7 +139,8 @@ void Compute::createComputePipeline_lbvh(
         &computePL_lbvh_bounding_box_update,
         descriptorSetLayouts,
         sizeof(StructDeltaTimeLBVH),
-        "shaders/lbvh_update_boxes.spv");
+        "shaders/lbvh_update_global_bb.spv");
+
 }
 
 

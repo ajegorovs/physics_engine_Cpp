@@ -280,7 +280,6 @@ void Descriptors::updateDescriptorSets(
 }
 
 void Descriptors::createDS_lbvh(
-    VkBuffer& bufferElements,
     VkBuffer& bufferMortonCode,
     VkBuffer& bufferMortonCodePingPong,
     VkBuffer& bufferLBVH,
@@ -302,8 +301,6 @@ void Descriptors::createDS_lbvh(
         throw std::runtime_error("failed to allocate descriptor sets!");
     }
 
-    VkDescriptorBufferInfo bufferElements_info{ bufferElements  ,0, sizeof(Element) * NUM_ELEMENTS };
-
     VkDescriptorBufferInfo bufferMortonCode_info{ bufferMortonCode , 0, sizeof(MortonCodeElement) * NUM_ELEMENTS };
 
     VkDescriptorBufferInfo bufferMortonCodePingPong_info{ bufferMortonCodePingPong , 0, sizeof(MortonCodeElement) * NUM_ELEMENTS };
@@ -314,22 +311,19 @@ void Descriptors::createDS_lbvh(
 
     VkDescriptorBufferInfo bufferParticleInfo{ bufferLBVHParticles , 0, sizeof(point3D) * NUM_ELEMENTS };
 
-    VkDescriptorBufferInfo bufferGlobalBBInfo{ bufferLBVHParticles , 0, sizeof(GlobalBoundingBox)};
+    VkDescriptorBufferInfo bufferGlobalBBInfo{ bufferGlobalBB , 0, sizeof(GlobalBoundingBox)};
 
     // sets: 0- to Morton code, 1- sort code, 2-construct tree, 3-calc BBs, 
-    // 4- update particles, 5- update particle bounding boxes., 6- experimental shader tree traversal.
+    // 4- update particles.
     // Bindings in order of entries.
     std::vector<std::vector<VkDescriptorBufferInfo>> descriptorBufferInfos = { // change DSL binding counts!
-        {bufferMortonCode_info  , bufferElements_info},
+        {bufferMortonCode_info  , bufferParticleInfo, bufferGlobalBBInfo},
         {bufferMortonCode_info  , bufferMortonCodePingPong_info},
-        {bufferMortonCode_info  , bufferElements_info       , bufferLBVH_info, LBVHConstructionInfo_info},
+        {bufferMortonCode_info  , bufferParticleInfo       , bufferLBVH_info, LBVHConstructionInfo_info},
         {bufferLBVH_info        , LBVHConstructionInfo_info},
-        {bufferParticleInfo},
-        {bufferParticleInfo, bufferElements_info},
-        {bufferParticleInfo, bufferLBVH_info, bufferGlobalBBInfo}
+        {bufferParticleInfo     , bufferLBVH_info, bufferGlobalBBInfo},
+        {bufferParticleInfo     , bufferGlobalBBInfo}
     };
-
-
 
     // all descriptor types will be storages
     size_t size;
@@ -491,7 +485,7 @@ void Descriptors::createDescriptorSetLayout(
 void Descriptors::createDSL_lbvh()
 {
     // All sets and bindings are of type storage buffer and are used by compute stage;
-    std::vector<uint32_t> bindings_per_set = { 2,2,4,2,1,2,3 };// added set = 6.
+    std::vector<uint32_t> bindings_per_set = { 3,2,4,2,3,2 }; 
 
     uint32_t num_sets = static_cast<uint32_t>(bindings_per_set.size());
 

@@ -83,7 +83,7 @@ void Shader::reflect(const std::vector<char>& code) {
 }
 
 void Shader::prepShader( const std::string& fileName) {
-    std::cout << "[Shader] Compiling " << shaderPath << "/" << fileName << std::endl;
+    std::cout << "[Shader] (not used. testing) Compiling " << shaderPath << "/" << fileName << std::endl;
 
     compileShader(fileName);
     std::vector<char> code = Misc::readFile(shaderPath + "/" + fileName + ".spv");

@@ -419,13 +419,15 @@ void Buffers::createBuffer_lbvh_points(std::vector<glm::vec3> points, glm::vec3 
         //glm::vec3 orbital_vel = angular_vel * dist * vel_dir;
 
         glm::vec3 accel(0.0f);
-        point3D v{glm::vec4(color2,1.0f), p, orbital_vel, accel , mass, 1.0f, 0.0f};
+        glm::vec3 bbmin = p - glm::vec3(P_R);
+        glm::vec3 bbmax = p + glm::vec3(P_R);
+        point3D v{glm::vec4(color2,1.0f), p, orbital_vel, accel, bbmin, bbmax, mass, 1.0f, 0.0f};
         particles.push_back(v);
     }
 
     createBufferDeviceLocalData(
         sizeof(point3D) * NUM_ELEMENTS,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT|VK_BUFFER_USAGE_VERTEX_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT|VK_BUFFER_USAGE_VERTEX_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         buffer_lbvh_particles,
         bufferMemory_lbvh_particles,
         static_cast<const void*>(particles.data())
@@ -483,8 +485,9 @@ void Buffers::createBuffer_lbvh_points_2sphere()
             p.group_id = 3.0f;
         }
         p.acceleration = glm::vec3(0.0f, 0.0f, 0.0f);
+        p.bbmin = p.position - glm::vec3(P_R);
+        p.bbmax = p.position + glm::vec3(P_R);
         p.damping = 0.0f;
-        
 
         //std::cout << p[0] << " " << p[1] << " " << p[2] << std::endl;
         points_lbvh.push_back(p);
@@ -492,7 +495,7 @@ void Buffers::createBuffer_lbvh_points_2sphere()
 
     createBufferDeviceLocalData(
         sizeof(point3D) * NUM_ELEMENTS,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         buffer_lbvh_particles,
         bufferMemory_lbvh_particles,
         static_cast<const void*>(points_lbvh.data())
@@ -536,6 +539,8 @@ void Buffers::createBuffer_lbvh_points_rot_sphere()
         p.group_id = 0.f;
 
         p.acceleration = glm::vec3(0.0f, 0.0f, 0.0f);
+        p.bbmin = p.position - glm::vec3(P_R);
+        p.bbmax = p.position + glm::vec3(P_R);
         p.damping = 0.0f;
 
         points_lbvh.push_back(p);
@@ -543,7 +548,7 @@ void Buffers::createBuffer_lbvh_points_rot_sphere()
 
     createBufferDeviceLocalData(
         sizeof(point3D) * NUM_ELEMENTS,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         buffer_lbvh_particles,
         bufferMemory_lbvh_particles,
         static_cast<const void*>(points_lbvh.data())
@@ -578,75 +583,12 @@ void Buffers::createBuffer_lbvh_points_host_vis()
         size, 0, &bufferMapped_lbvh_particles_host_vis);
 }
 
-
-void Buffers::createBuffer_lbvh_elementsBuffer(std::vector<glm::vec3> points)
-{
-    std::vector<Element> particles;
-    particles.reserve(NUM_ELEMENTS);
-    float mass = 1 / static_cast<float>(NUM_ELEMENTS);
-    for (uint32_t i = 0; i < NUM_ELEMENTS; i++)
-    {
-        glm::vec3 p = points[i];
-        Element e;
-        e.primitiveIdx = i;
-        e.aabbMinX = p[0] - P_R; // tested in RenderDoc with 0.1f, 0.2f,...
-        e.aabbMinY = p[1] - P_R;
-        e.aabbMinZ = p[2] - P_R;
-        e.aabbMaxX = p[0] + P_R;
-        e.aabbMaxY = p[1] + P_R;
-        e.aabbMaxZ = p[2] + P_R;
-        e.mass = mass;
-        particles.push_back(e);
-    }
-
-    createBufferDeviceLocalData(
-        sizeof(Element) * NUM_ELEMENTS,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        buffer_lbvh_elements,
-        bufferMemory_lbvh_elements,
-        static_cast<const void*>(particles.data())
-    );
-    //particle_ids.clear();
-    //particle_ids.shrink_to_fit();
-}
-
-void Buffers::createBuffer_lbvh_elementsBuffer()
-{
-    std::vector<Element> elements;
-    elements.reserve(NUM_ELEMENTS);
-    for (uint32_t i = 0; i < NUM_ELEMENTS; i++)
-    {
-        point3D p = points_lbvh[i];
-        Element e;
-        e.primitiveIdx = i;
-        e.aabbMinX = p.position[0] - P_R; // tested in RenderDoc with 0.1f, 0.2f,...
-        e.aabbMinY = p.position[1] - P_R;
-        e.aabbMinZ = p.position[2] - P_R;
-        e.aabbMaxX = p.position[0] + P_R;
-        e.aabbMaxY = p.position[1] + P_R;
-        e.aabbMaxZ = p.position[2] + P_R;
-        e.mass = p.mass;
-        elements.push_back(e);
-    }
-
-    createBufferDeviceLocalData(
-        sizeof(Element) * NUM_ELEMENTS,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        buffer_lbvh_elements,
-        bufferMemory_lbvh_elements,
-        static_cast<const void*>(elements.data())
-    );
-    //particle_ids.clear();
-    //particle_ids.shrink_to_fit();
-}
-
-
 void Buffers::createBuffer_lbvh_mortonCode()
 {
 
     createBufferDeviceLocalData(
         sizeof(MortonCodeElement) * NUM_ELEMENTS,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         buffer_lbvh_mortonCode,
         bufferMemory_lbvh_mortonCode
     );
@@ -757,22 +699,22 @@ void Buffers::createBuffer_lbvh_global_BBs()
 
 void Buffers::createBuffer_lbvh_get_init_BBs()
 {
-    glm::vec3 min(-10000.f, -10000.f, -10000.f);
-    glm::vec3 max( 10000.f,  10000.f,  10000.f);
+    glm::vec3 max(-10000.f, -10000.f, -10000.f);
+    glm::vec3 min( 10000.f,  10000.f,  10000.f);
 
     glm::vec3 dr(P_R);
 
     for (point3D p : points_lbvh)
     {
-        glm::vec3 min_this = p.position - dr;
-        glm::vec3 max_this = p.position + dr;
+        glm::vec3 min_this = p.position ;
+        glm::vec3 max_this = p.position ;
 
         min = glm::min(min, min_this);
         max = glm::max(max, max_this);
     }
 
-    lbvh_BB[0] = min;
-    lbvh_BB[1] = max;
+    lbvh_BB[0] = min;// - dr;
+    lbvh_BB[1] = max;// + dr;
 }
 
 void Buffers::createBuffer_uniformDeltaTime()
@@ -901,7 +843,6 @@ void Buffers::clearBuffers1(){
     }
     
     vkDestroyBuffer(*pDevice, buffer_lbvh_particles, nullptr);
-    vkDestroyBuffer(*pDevice, buffer_lbvh_elements, nullptr);
     vkDestroyBuffer(*pDevice, buffer_lbvh_mortonCode, nullptr);
     vkDestroyBuffer(*pDevice, buffer_lbvh_mortonCodePingPong, nullptr);
     vkDestroyBuffer(*pDevice, buffer_lbvh_LBVH, nullptr);
@@ -909,7 +850,6 @@ void Buffers::clearBuffers1(){
     vkDestroyBuffer(*pDevice, buffer_lbvh_LBVH_host_vis, nullptr);
 
     vkFreeMemory(*pDevice, bufferMemory_lbvh_particles, nullptr);
-    vkFreeMemory(*pDevice, bufferMemory_lbvh_elements, nullptr);
     vkFreeMemory(*pDevice, bufferMemory_lbvh_mortonCode, nullptr);
     vkFreeMemory(*pDevice, bufferMemory_lbvh_mortonCodePingPong, nullptr);
     vkFreeMemory(*pDevice, bufferMemory_lbvh_LBVH, nullptr);

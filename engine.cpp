@@ -104,8 +104,6 @@ void Engine::run()
         bfr.createBuffer_lbvh_get_init_BBs();
         bfr.createBuffer_lbvh_global_BBs();
         //bfr.createBuffer_lbvh_points_rot_sphere();
-        //bfr.createBuffer_lbvh_elementsBuffer(points3d);
-        bfr.createBuffer_lbvh_elementsBuffer();
         bfr.createBuffer_lbvh_mortonCode();
         bfr.createBuffer_lbvh_mortonCode_host_vis();
         bfr.createBuffer_lbvh_mortonCodePingPong();
@@ -114,7 +112,6 @@ void Engine::run()
         bfr.createBuffer_lbvh_LBVHConstructionInfo();
 
         dscr.createDS_lbvh(
-            bfr.buffer_lbvh_elements,
             bfr.buffer_lbvh_mortonCode,
             bfr.buffer_lbvh_mortonCodePingPong,
             bfr.buffer_lbvh_LBVH,
@@ -460,7 +457,7 @@ void Engine::recordLBVHComputeCommandBuffer(VkCommandBuffer commandBuffer, bool 
 
         // -------------- Generate Morton Codes ---------------
         // read element write morton code
-        vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_morton_codes, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsMortonCodes), &pushConstMC);
+        vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_morton_codes, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(StructLBVH_NUM_ELEMENTS), &pushConstRS);
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_morton_codes);
 
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_morton_codes, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
@@ -473,7 +470,7 @@ void Engine::recordLBVHComputeCommandBuffer(VkCommandBuffer commandBuffer, bool 
 
         // --------------------- Radix Sort ------------------------
         // sort OG morton code with help of buffer array.
-        vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_single_radixsort, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsRadixSort), &pushConstRS);
+        vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_single_radixsort, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(StructLBVH_NUM_ELEMENTS), &pushConstRS);
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_single_radixsort);
 
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_single_radixsort, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
@@ -529,7 +526,7 @@ void Engine::recordLBVHComputeCommandBuffer(VkCommandBuffer commandBuffer, bool 
    
 }
 
-void Engine::recordLBVHComputeCommandBuffer2(VkCommandBuffer commandBuffer, bool recalculate)
+void Engine::recordLBVH_particle_bb_update(VkCommandBuffer commandBuffer)
 {
     VkCommandBufferBeginInfo beginInfo{ .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 
@@ -547,18 +544,14 @@ void Engine::recordLBVHComputeCommandBuffer2(VkCommandBuffer commandBuffer, bool
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_particles_update2, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
     vkCmdDispatch(commandBuffer, x, 1, 1);
 
-    if (recalculate) {
-        // finish updating particles before updating their bounding boxes. BB update 1 step early to be used in next step's LBVH
-        VkMemoryBarrier compute_readWrite{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
-        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &compute_readWrite, 0, nullptr, 0, nullptr);
+    // ------- udpate bounding box -------
+    VkMemoryBarrier memoryBarrier{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
+    vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
 
-        // ---------------- Update Bounding Boxes ---------------
-        vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_bounding_box_update, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(StructDeltaTimeLBVH), &pushDeltaTime);
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_bounding_box_update);
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_bounding_box_update, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
-        vkCmdDispatch(commandBuffer, x, 1, 1);
-
-    }
+    vkCmdPushConstants(commandBuffer, cmpt.computePL_lbvh_bounding_box_update, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(StructDeltaTimeLBVH), &pushDeltaTime);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_bounding_box_update);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_bounding_box_update, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
+    vkCmdDispatch(commandBuffer, 1, 1, 1); // need only 6 workers
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to record LBVH compute command buffer!");
@@ -587,7 +580,7 @@ void Engine::doLBVH_MC_RADIX()
         // -------------- Generate Morton Codes ---------------
         if (!load_fake_mc) {
             // read element write morton code
-            vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_morton_codes, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsMortonCodes), &pushConstMC);
+            vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_morton_codes, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(StructLBVH_NUM_ELEMENTS), &pushConstRS);
             vkCmdBindPipeline(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_morton_codes);
             vkCmdBindDescriptorSets(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_morton_codes, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
             vkCmdDispatch(cmd.commandLBVHComputeBuffer, x, 1, 1);
@@ -613,7 +606,7 @@ void Engine::doLBVH_MC_RADIX()
 
         }
         // do radix sort on MC
-        vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_single_radixsort, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsRadixSort), &pushConstRS);
+        vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_single_radixsort, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(StructLBVH_NUM_ELEMENTS), &pushConstRS);
         vkCmdBindPipeline(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_single_radixsort);
         vkCmdBindDescriptorSets(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_single_radixsort, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
         vkCmdDispatch(cmd.commandLBVHComputeBuffer, y, 1, 1);
@@ -694,7 +687,7 @@ bool Engine::redoLBVH_RADIX()
         VkMemoryBarrier memoryBarrier2{ VK_STRUCTURE_TYPE_MEMORY_BARRIER, NULL, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT };
         vkCmdPipelineBarrier(cmd.commandLBVHComputeBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, {}, 1, &memoryBarrier2, 0, nullptr, 0, nullptr);
 
-        vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_single_radixsort, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsRadixSort), &pushConstRS);
+        vkCmdPushConstants(cmd.commandLBVHComputeBuffer, cmpt.computePL_lbvh_single_radixsort, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(StructLBVH_NUM_ELEMENTS), &pushConstRS);
         vkCmdBindPipeline(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computeP_lbvh_single_radixsort);
         vkCmdBindDescriptorSets(cmd.commandLBVHComputeBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, cmpt.computePL_lbvh_single_radixsort, 0, size, dscr.descriptorSets_lbvh.data(), 0, nullptr);
         vkCmdDispatch(cmd.commandLBVHComputeBuffer, y, 1, 1);
@@ -833,7 +826,6 @@ void Engine::drawFrame() {
         
     uint32_t LBVH_each_N_Frames = 3;
     recalculateLBVH = cnt % LBVH_each_N_Frames == 0;
-    recalculateBBs =  (cnt - 1) % LBVH_each_N_Frames == 0;
 
     if (ENABLE_LVBH) {
 
@@ -869,17 +861,17 @@ void Engine::drawFrame() {
 
                 BBox::getVerts(
                     glm::vec3(1.0f, 0.0f, 0.0f),
-                    pushConstMC.g_min_x,
-                    pushConstMC.g_min_y,
-                    pushConstMC.g_min_z,
-                    pushConstMC.g_max_x,
-                    pushConstMC.g_max_y,
-                    pushConstMC.g_max_z,
+                    0.0f,
+                    0.0f,
+                    0.0f,
+                    1.0f,
+                    1.0f,
+                    1.0f,
                     verts
                 );
                 if (!DRAW_BBS_only_outer) {
                     for (size_t i = 0; i < NUM_ELEMENTS - 1; i++)
-                    {
+                      {
                         BBox::getVerts(
                             glm::vec3(0.0f, 1.0f, 0.0f),
                             nodes[i].aabbMinX,
@@ -899,7 +891,7 @@ void Engine::drawFrame() {
 
             // 2.b update particle forces by traversing LBVH tree on CPU :(
             // =============== FORCES CPU ==========================
-            glm::vec3 min(10000.0f, 10000.0f, 10000.0f);
+            /*glm::vec3 min(10000.0f, 10000.0f, 10000.0f);
             glm::vec3 max(-10000.0f, -10000.0f, -10000.0f);
 
             uint32_t firstNodeIndex = NUM_ELEMENTS - 1;
@@ -925,7 +917,7 @@ void Engine::drawFrame() {
             pushConstMC.g_min_z = min[2];
             pushConstMC.g_max_x = max[0];
             pushConstMC.g_max_y = max[1];
-            pushConstMC.g_max_z = max[2];
+            pushConstMC.g_max_z = max[2];*/
 
         }
 
@@ -937,7 +929,7 @@ void Engine::drawFrame() {
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = &sync.lbvhComputeSemaphore;
 
-        recordLBVHComputeCommandBuffer2(cmd.commandLBVHComputeBuffer, recalculateBBs);
+        recordLBVH_particle_bb_update(cmd.commandLBVHComputeBuffer);
 
         VkResult res0 = vkQueueSubmit(computeQueue, 1, &submitInfo, sync.lbvhComputeFence);
         if (res0 != VK_SUCCESS) {

@@ -38,14 +38,16 @@ struct StructDeltaTimeLBVH
 
 
 // #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES should deal with glm::X
-struct alignas(16) point3D {
-    alignas(16) glm::vec4 color;         // Offset: 0, Size: 16
-    alignas(16) glm::vec3 position;      // Offset: 16, Size: 12 + 4 padding
-    alignas(16) glm::vec3 velocity;      // Offset: 32, Size: 12 + 4 padding
-    alignas(16) glm::vec3 acceleration;  // Offset: 48, Size: 12 + 4 padding
-    alignas(4)  glm::float32 mass;               // Offset: 64, Size: 4
-    alignas(4)  glm::float32 damping;            // Offset: 68, Size: 4
-    alignas(4)  float group_id;            // Offset: 68, Size: 4
+struct point3D {
+    alignas(16) glm::vec4 color;         
+    alignas(16) glm::vec3 position;      
+    alignas(16) glm::vec3 velocity;      
+    alignas(16) glm::vec3 acceleration;  
+    alignas(16) glm::vec3 bbmin;  
+    alignas(16) glm::vec3 bbmax;  
+    alignas(4)  glm::float32 mass;       
+    alignas(4)  glm::float32 damping;    
+    alignas(4)  float group_id;          
 
     static VkVertexInputBindingDescription getBindingDescription() {
         VkVertexInputBindingDescription bindingDescription{};
@@ -57,22 +59,27 @@ struct alignas(16) point3D {
     }
 
     static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
+        
+        std::vector<std::pair<size_t, VkFormat>> attributes = {
+            { offsetof(point3D, color       ), VK_FORMAT_R32G32B32A32_SFLOAT },
+            { offsetof(point3D, position    ), VK_FORMAT_R32G32B32_SFLOAT },
+            { offsetof(point3D, velocity    ), VK_FORMAT_R32G32B32_SFLOAT },
+            { offsetof(point3D, acceleration), VK_FORMAT_R32G32B32_SFLOAT },
+            { offsetof(point3D, bbmin       ), VK_FORMAT_R32G32B32_SFLOAT },
+            { offsetof(point3D, bbmax       ), VK_FORMAT_R32G32B32_SFLOAT },
+            { offsetof(point3D, mass        ), VK_FORMAT_R32_SFLOAT },
+            { offsetof(point3D, damping     ), VK_FORMAT_R32_SFLOAT },
+            { offsetof(point3D, group_id    ), VK_FORMAT_R32_UINT }
+        };
         std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
+        attributeDescriptions.reserve(attributes.size());
 
-        // Populate the vector with attribute descriptions
-        attributeDescriptions.push_back({ 0,0,VK_FORMAT_R32G32B32A32_SFLOAT,offsetof(point3D, color) });
-
-        attributeDescriptions.push_back({ 1,0,VK_FORMAT_R32G32B32_SFLOAT,offsetof(point3D, position) });
-
-        attributeDescriptions.push_back({ 2,0,VK_FORMAT_R32G32B32_SFLOAT,offsetof(point3D, velocity) });
-
-        attributeDescriptions.push_back({ 3,0,VK_FORMAT_R32G32B32_SFLOAT,offsetof(point3D, acceleration) });
-
-        attributeDescriptions.push_back({ 4,0,VK_FORMAT_R32_SFLOAT,offsetof(point3D, mass) });
-
-        attributeDescriptions.push_back({ 5,0,VK_FORMAT_R32_SFLOAT,offsetof(point3D, damping) });
-
-        attributeDescriptions.push_back({ 6,0,VK_FORMAT_R32_UINT,offsetof(point3D, group_id) });
+        for (uint32_t i = 0; i < attributes.size(); i++)
+        {
+            size_t offset = attributes[i].first;
+            VkFormat format = attributes[i].second;
+            attributeDescriptions.push_back({ i ,0, format, static_cast<uint32_t>(offset) });
+        }
 
         return attributeDescriptions;
     };
@@ -258,17 +265,7 @@ struct LBVHConstructionInfo {
     int32_t visitationCount; // number of threads that arrived
 };
 
-struct PushConstantsMortonCodes {
-    uint32_t g_num_elements; // = NUM_ELEMENTS
-    float g_min_x; // (*)
-    float g_min_y;
-    float g_min_z;
-    float g_max_x;
-    float g_max_y;
-    float g_max_z;
-};
-
-struct PushConstantsRadixSort {
+struct StructLBVH_NUM_ELEMENTS {
     uint32_t g_num_elements; // = NUM_ELEMENTS
 };
 

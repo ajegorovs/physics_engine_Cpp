@@ -8,8 +8,8 @@
 #include "structs.h"
 #include <glm/glm.hpp>
 
-const bool DRAW_BBS = false;
-const bool DRAW_BBS_only_outer = true;
+const bool DRAW_BBS = true;
+const bool DRAW_BBS_only_outer = false;
 const float P_R = 0.005f;
 //const std::vector<glm::vec3> poits2d =  Misc::seedUniformPoints2D(50);
 //const uint32_t NUM_ELEMENTS = static_cast<uint32_t>(size(poits2d));
@@ -21,8 +21,7 @@ const uint32_t NUM_BB_POINTS = ((NUM_ELEMENTS -1) + 1) * 12 * 2; // + external b
 const VkDeviceSize lineVertSize = sizeof(VertexBase) * NUM_BB_POINTS;
 
 //const std::vector<float> asd = Misc::getExtent(poits2d);
-//const PushConstantsMortonCodes pushConstMC{ NUM_ELEMENTS, asd[0], asd[1], asd[2], asd[3], asd[4], asd[5]};
-const PushConstantsRadixSort pushConstRS{ NUM_ELEMENTS };
+const StructLBVH_NUM_ELEMENTS pushConstRS{ NUM_ELEMENTS };
 const PushConstantsHierarchy pushConstHierarchy{ NUM_ELEMENTS, 1 };
 const PushConstantsBoundingBoxes pushConstantsBoundingBoxes{ NUM_ELEMENTS, 1 };
 

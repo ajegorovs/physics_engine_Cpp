@@ -11,6 +11,18 @@
 
 #include "lbvh_common.glsl"
 
+struct Particle {
+	vec4 color;
+	vec3 position;
+	vec3 velocity;
+	vec3 acceleration;
+	vec3 bbmin;
+	vec3 bbmax;
+	float mass;
+	float damping;
+	float group_id;
+};
+
 layout (local_size_x = 256) in;
 
 layout (push_constant, std430) uniform PushConstants {
@@ -22,8 +34,8 @@ layout (std430, set = 2, binding = 0) readonly buffer sorted_morton_codes {
     MortonCodeElement g_sorted_morton_codes[];
 };
 
-layout (std430, set = 2, binding = 1) readonly buffer elements {
-    Element g_elements[];
+layout (std430, set = 2, binding = 1) readonly buffer particles {
+    Particle g_particles[];
 };
 
 layout (std430, set = 2, binding = 2) writeonly buffer lbvh {
@@ -111,13 +123,13 @@ void main() {
 
     // construct leaf nodes
     if (gID < g_num_elements) {
-		Element element = g_elements[g_sorted_morton_codes[gID].elementIdx];
-		vec3 center = 0.5f*vec3(element.aabbMaxX + element.aabbMinX, element.aabbMaxY + element.aabbMinY, element.aabbMaxZ + element.aabbMinZ);
+		Particle p = g_particles[g_sorted_morton_codes[gID].elementIdx];
+		vec3 center = 0.5f*(p.bbmin + p.bbmax);
         g_lbvh[LEAF_OFFSET + gID] = LBVHNode(
-		INVALID_POINTER, INVALID_POINTER, element.primitiveIdx, 
-		element.aabbMinX, element.aabbMinY, element.aabbMinZ, 
-		element.aabbMaxX, element.aabbMaxY, element.aabbMaxZ,
-		element.mass, center[0], center[1], center[2]);
+		INVALID_POINTER, INVALID_POINTER, g_sorted_morton_codes[gID].elementIdx, 
+		p.bbmin.x, p.bbmin.y, p.bbmin.z, 
+		p.bbmax.x, p.bbmax.y, p.bbmax.z,
+		p.mass, center.x, center.y, center.z);
     }
 
     // construct internal nodes
@@ -155,10 +167,6 @@ void main() {
         }
         g_lbvh_construction_infos[childA] = LBVHConstructionInfo(gID, 0);
         g_lbvh_construction_infos[childB] = LBVHConstructionInfo(gID, 0);
-		//g_lbvh_construction_infos[childA].parent = gID;
-        //g_lbvh_construction_infos[childB].parent = gID;
-		//g_lbvh_construction_infos[childA].visitationCount = 0;
-        //g_lbvh_construction_infos[childB].visitationCount = 0;
     }
 
     // node 0 is the root

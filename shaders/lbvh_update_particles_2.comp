@@ -2,22 +2,14 @@
 #version 460
 
 #define MAX_ELEMENTS 1024 
-#extension GL_EXT_shader_atomic_float2: enable
-
-struct GlobalBoundingBox {
-    float minX;
-    float minY;
-    float minZ;
-    float maxX;
-    float maxY;
-    float maxZ;
-};
 
 struct Particle {
 	vec4 color;
 	vec3 position;
 	vec3 velocity;
 	vec3 acceleration;
+	vec3 bbmin;
+	vec3 bbmax;
 	float mass;
 	float damping;
 	float group_id;
@@ -54,16 +46,12 @@ layout (push_constant, std430) uniform PushConstants {
 	uint g_num_elements;
 };
 
-layout (std430, set = 6, binding = 0) buffer particles {
+layout (std430, set = 4, binding = 0) buffer particles {
     Particle g_particles[];
 };
 
-layout (std430, set = 6, binding = 1) readonly buffer lbvh {
+layout (std430, set = 4, binding = 1) readonly buffer lbvh {
     LBVHNode nodes[];
-};
-
-layout (std430, set = 6, binding = 2) buffer boundingbox {
-    GlobalBoundingBox g_BB;
 };
 
 
@@ -73,6 +61,7 @@ void main() {
     if (idx >= g_num_elements || deltaTime <= 0) {
         return;
     }
+	
 	// ============= TREEEEEEEEEE TRAVERSAL ===============
 	
 	uint firstNodeIndex = g_num_elements - 1;
@@ -137,19 +126,14 @@ void main() {
 	g_particles[trueID].velocity += g_particles[trueID].acceleration * deltaTime;
 	g_particles[trueID].position += g_particles[trueID].velocity * deltaTime;
 	
+	vec3 dr = vec3(0.005);
+	g_particles[trueID].bbmin = g_particles[trueID].position - dr;
+	g_particles[trueID].bbmax = g_particles[trueID].position + dr;
 	
 	
 	float vel_damp = 0.7;
 	vec3 pos = g_particles[trueID].position;
-	
-	//atomicMin(g_BB.minX, pos.x - 0.005);
-    //atomicMin(g_BB.minY, pos.y - 0.005);
-    //atomicMin(g_BB.minZ, pos.z - 0.005);
-    //atomicMax(g_BB.minX, pos.x + 0.005);
-    //atomicMax(g_BB.minY, pos.y + 0.005);
-    //atomicMax(g_BB.minZ, pos.z + 0.005);
-	
-	
+		
 	if ((pos.x <= -0.5) || (pos.x  >= 1.5)) {
 			g_particles[trueID].velocity.x *= -vel_damp;
 		}

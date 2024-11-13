@@ -45,7 +45,6 @@ public:
 	);
 
 	void createDS_lbvh(
-		VkBuffer& bufferElements,  
 		VkBuffer& bufferMortonCode,
 		VkBuffer& bufferMortonCodePingPong,
 		VkBuffer& bufferLBVH,
